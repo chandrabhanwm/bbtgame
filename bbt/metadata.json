@@ -1,6 +1,0 @@
-{
-  "name": "Basti Business Tycoon",
-  "description": "A high-fidelity premium mobile game UI/UX prototype for Basti Business Tycoon, featuring an interactive Gandhi Nagar street visualization, real-time idle income calculations, custom retro UI sounds, and smooth framer-motion animations.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
