@@ -1,0 +1,74 @@
+import { PlayerStats } from '../types';
+
+const POINTS_PER_ACTION = 10;
+const DAILY_UPGRADE_POINTS_CAP = 20; // matches the "15-20/day" range agreed on — the upper end, since it's a genuine cap, not a guess
+
+function todayDateString(): string {
+  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD, UTC — same reasoning as the weekly reset below
+}
+
+/** The timestamp of the most recent Monday 00:00 UTC. Using UTC
+ *  deliberately, not the player's local timezone — this is a shared,
+ *  citywide contest with a single real winner list, so every player's
+ *  week needs to start and end at the same real moment, not whenever
+ *  midnight happens to fall wherever they are. */
+function mostRecentMondayUTC(): number {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0 = Sunday, 1 = Monday, ...
+  const daysSinceMonday = day === 0 ? 6 : day - 1;
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysSinceMonday, 0, 0, 0, 0));
+  return monday.getTime();
+}
+
+type ContestAction = 'buy_or_upgrade' | 'claim';
+
+/**
+ * Applies weekly contest scoring to a stats update — action-based only,
+ * never wealth-based, per the confirmed design. Handles the weekly
+ * reset (if a new week has started since this player's own
+ * weeklyPointsWeekStart) and the daily upgrade-specific farming cap,
+ * both inline, so every caller gets correct behavior without
+ * duplicating that logic.
+ *
+ * isNewBusiness distinguishes a first-time purchase from a regular
+ * upgrade — both currently earn the same points, but the anti-farming
+ * cap applies only to upgrades (buying is already naturally limited to
+ * a finite number of businesses per district).
+ */
+export function applyContestPoints(prev: PlayerStats, action: ContestAction, isNewBusiness: boolean = false): PlayerStats {
+  const currentWeekStart = mostRecentMondayUTC();
+  const weekRolledOver = prev.weeklyPointsWeekStart !== currentWeekStart;
+  const weeklyPointsBase = weekRolledOver ? 0 : prev.weeklyPoints;
+
+  const today = todayDateString();
+  const dayRolledOver = prev.dailyUpgradePointsDate !== today;
+  const dailyUpgradePointsBase = dayRolledOver ? 0 : prev.dailyUpgradePointsCount;
+
+  if (action === 'buy_or_upgrade') {
+    const isCappableUpgrade = !isNewBusiness;
+    if (isCappableUpgrade && dailyUpgradePointsBase >= DAILY_UPGRADE_POINTS_CAP) {
+      // Cap reached — the action itself still happens (handled by the
+      // caller), it just doesn't earn any more contest points today.
+      return {
+        ...prev,
+        weeklyPoints: weeklyPointsBase,
+        weeklyPointsWeekStart: currentWeekStart,
+        dailyUpgradePointsCount: dailyUpgradePointsBase,
+        dailyUpgradePointsDate: today,
+      };
+    }
+    return {
+      ...prev,
+      weeklyPoints: weeklyPointsBase + POINTS_PER_ACTION,
+      weeklyPointsWeekStart: currentWeekStart,
+      dailyUpgradePointsCount: isCappableUpgrade ? dailyUpgradePointsBase + POINTS_PER_ACTION : dailyUpgradePointsBase,
+      dailyUpgradePointsDate: today,
+    };
+  }
+
+  return {
+    ...prev,
+    weeklyPoints: weeklyPointsBase + POINTS_PER_ACTION,
+    weeklyPointsWeekStart: currentWeekStart,
+  };
+}
