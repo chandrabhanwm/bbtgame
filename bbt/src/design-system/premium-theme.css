@@ -1,0 +1,212 @@
+/**
+ * PREMIUM DESIGN SYSTEM — Tailwind theme additions
+ * ============================================================
+ * This mirrors tokens.ts as real CSS custom properties, namespaced under
+ * `premium-*` so Tailwind v4 generates ergonomic utility classes
+ * (bg-premium-surface, text-premium-gold, rounded-premium-card, etc.)
+ * without colliding with or altering a single existing token in index.css.
+ *
+ * Nothing in the live app reads these variables yet — importing this
+ * file makes the tokens available, it does not apply them anywhere.
+ * A future redesign pass adopts them screen by screen.
+ *
+ * NOTE: the Sora font is imported from index.css itself, not from here —
+ * CSS requires @import statements to precede all other rules in a
+ * stylesheet, and this file gets nested inside index.css's own imports,
+ * so a font @import placed here would land too late in the cascade to
+ * be valid.
+ */
+
+/**
+ * PREMIUM DESIGN SYSTEM — Tailwind theme additions
+ * ============================================================
+ * This mirrors tokens.ts as real CSS custom properties, namespaced under
+ * `premium-*` so Tailwind v4 generates ergonomic utility classes
+ * (bg-premium-surface, text-premium-gold, rounded-premium-card, etc.)
+ * without colliding with or altering a single existing token in index.css.
+ *
+ * This is now the single, live design system for the Home Screen (Header,
+ * District Hero, Boost strip, Business grid, Footer tip, Bottom nav) — every
+ * color those components use routes through a variable defined here. There
+ * is exactly one design system in this project, not two competing ones.
+ *
+ * NOTE: the Sora font is imported from index.css itself, not from here —
+ * CSS requires @import statements to precede all other rules in a
+ * stylesheet, and this file gets nested inside index.css's own imports,
+ * so a font @import placed here would land too late in the cascade to
+ * be valid.
+ */
+
+@theme {
+  --font-premium: "Sora", ui-sans-serif, system-ui, sans-serif;
+
+  /* Backgrounds */
+  --color-premium-bg: #0A0A0B;
+  --color-premium-surface: #131110;
+  --color-premium-elevated: #1C1913;
+  --color-premium-overlay: #1C1913;
+  --color-premium-track: #2A2620;
+
+  /* Borders — gold-tinted at three opacity tiers, per the approved design */
+  --color-premium-border-subtle: rgba(212, 167, 44, 0.15);
+  --color-premium-border: rgba(212, 167, 44, 0.25);
+  --color-premium-border-strong: rgba(212, 167, 44, 0.45);
+
+  /* Gold accent — the primary emphasis color throughout this design */
+  --color-premium-gold-100: #F0C24B;
+  --color-premium-gold-400: #D4A72C;
+  --color-premium-gold-600: #A8842A;
+
+  /* Money — always green */
+  --color-premium-green-300: #6FE3A6;
+  --color-premium-green-500: #22C55E;
+  --color-premium-green-700: #16803F;
+
+  /* Warning / Error */
+  --color-premium-amber-400: #E0A458;
+  --color-premium-amber-600: #B87F36;
+  --color-premium-red-400: #EF4444;
+  --color-premium-red-600: #C23636;
+
+  /* Information — used sparingly as the third accent alongside gold/green */
+  --color-premium-info-400: #60A5FA;
+
+  /* Text */
+  --color-premium-text: #FFFFFF;
+  --color-premium-text-secondary: #9B9895;
+  --color-premium-text-disabled: #5B626C;
+  --color-premium-text-inverse: #0A0A0B;
+
+  /* Star rating unfilled state */
+  --color-premium-star-empty: #4A4640;
+
+  /* Business/category badge palette — reused across category chips and
+     price/level pills, not hardcoded per business */
+  --color-premium-badge-brown: #8B5A2B;
+  --color-premium-badge-blue: #2563EB;
+  --color-premium-badge-green: #16A34A;
+  --color-premium-badge-orange: #C2650B;
+  --color-premium-badge-gray: #4B5563;
+  --color-premium-badge-purple: #7C3AED;
+  --color-premium-badge-text-cream: #F5E6C8;
+
+  /* District Hero banner overlay treatment */
+  --color-premium-overlay-vignette: rgba(0, 0, 0, 0.4);
+  --color-premium-overlay-fade: rgba(10, 10, 11, 0.95);
+  --color-premium-scrim: rgba(10, 10, 11, 0.7);
+  --color-premium-shadow-neutral: #000000;
+
+  /* Radius */
+  --radius-premium-sm: 6px;
+  --radius-premium-md: 10px;
+  --radius-premium-lg: 16px;
+  --radius-premium-xl: 24px;
+  --radius-premium-pill: 999px;
+  --radius-premium-card: 16px;
+  --radius-premium-dialog: 24px;
+  --radius-premium-button: 10px;
+
+  /* Spacing scale — use ONLY these values in any premium-system layout */
+  --spacing-premium-xs: 4px;
+  --spacing-premium-sm: 8px;
+  --spacing-premium-md: 12px;
+  --spacing-premium-lg: 16px;
+  --spacing-premium-xl: 20px;
+  --spacing-premium-2xl: 24px;
+  --spacing-premium-3xl: 32px;
+  --spacing-premium-4xl: 40px;
+  --spacing-premium-5xl: 48px;
+}
+
+@layer utilities {
+  /* Shadows — refined to "very subtle, almost invisible" per the Header
+     brief; luxury surfaces read via elevation of surface color, not shadow weight */
+  .shadow-premium-card { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28); }
+  .shadow-premium-floating { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32); }
+  .shadow-premium-dialog { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4); }
+  .shadow-premium-button { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
+  .shadow-premium-hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+  .shadow-premium-pressed { box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35); }
+  .shadow-premium-glow-gold { box-shadow: 0 0 20px rgba(212, 167, 44, 0.18); }
+  .shadow-premium-glow-green { box-shadow: 0 0 18px rgba(34, 197, 94, 0.20); }
+
+  /* Typography roles — one declaration per role, matching tokens.ts
+     exactly, so "premium-title" always means the same thing everywhere. */
+  .text-premium-display { font-family: var(--font-premium); font-weight: 700; font-size: 32px; line-height: 1.1; letter-spacing: -0.02em; }
+  .text-premium-heading { font-family: var(--font-premium); font-weight: 700; font-size: 24px; line-height: 1.2; letter-spacing: -0.01em; }
+  .text-premium-title { font-family: var(--font-premium); font-weight: 600; font-size: 18px; line-height: 1.3; letter-spacing: 0; }
+  .text-premium-subtitle { font-family: var(--font-premium); font-weight: 500; font-size: 14px; line-height: 1.4; letter-spacing: 0; }
+  .text-premium-body { font-family: var(--font-premium); font-weight: 400; font-size: 14px; line-height: 1.6; letter-spacing: 0; }
+  .text-premium-caption { font-family: var(--font-premium); font-weight: 600; font-size: 11px; line-height: 1.4; letter-spacing: 0.06em; text-transform: uppercase; }
+  .text-premium-button { font-family: var(--font-premium); font-weight: 600; font-size: 14px; line-height: 1; letter-spacing: 0.03em; text-transform: uppercase; }
+  .text-premium-label { font-family: var(--font-premium); font-weight: 700; font-size: 10px; line-height: 1.2; letter-spacing: 0.08em; text-transform: uppercase; }
+  .text-premium-number { font-family: var(--font-premium); font-weight: 700; font-size: 20px; line-height: 1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .text-premium-money { font-family: var(--font-premium); font-weight: 700; font-size: 22px; line-height: 1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--color-premium-green-500); }
+
+  /* Animation presets — durations/easings named to match tokens.ts */
+  .transition-premium-standard { transition-duration: 220ms; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+  .transition-premium-fast { transition-duration: 150ms; transition-timing-function: cubic-bezier(0.4, 0, 1, 1); }
+  .transition-premium-settle { transition-duration: 350ms; transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+
+  /* Glossy 3D card treatment — one reusable style, shared by every card
+     that asks for the "glossy/elegant" look (Cash pill, Rank pill,
+     District Hero, Business cards), so they read as one consistent family
+     rather than each inventing its own gloss. Built entirely from existing
+     premium tokens (gold, surface, elevated, bg) plus neutral white/black
+     overlays for the shine and depth-shadow — those two are structural to
+     any glossy effect, not a new hue choice, same principle as the
+     existing neutral shadow token. */
+  .glossy-3d {
+    position: relative;
+    background: linear-gradient(165deg, var(--color-premium-elevated) 0%, var(--color-premium-surface) 45%, var(--color-premium-bg) 100%);
+    border: 1.5px solid rgba(212, 167, 44, 0.7);
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.15),
+      inset 0 -6px 12px rgba(0, 0, 0, 0.5),
+      inset 1.5px 0 0 rgba(255, 255, 255, 0.06),
+      inset -1.5px 0 0 rgba(0, 0, 0, 0.22),
+      0 5px 16px rgba(0, 0, 0, 0.42),
+      0 0 20px rgba(212, 167, 44, 0.10);
+  }
+  .glossy-3d::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    /* Gold-tinted shine (rgb 240,194,75 = --color-premium-gold-100),
+       dialed back ~30% from the previous pass, which read as too bright
+       at real mobile scale. */
+    background:
+      radial-gradient(130% 65% at 28% -10%, rgba(240, 194, 75, 0.28) 0%, transparent 60%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 22%, transparent 46%);
+    pointer-events: none;
+  }
+
+  /* Reduced-intensity variant — District Hero card specifically. Same
+     structure as .glossy-3d, every value roughly halved: border opacity,
+     shadow spread/opacity, and the shine overlay. Kept as its own class
+     rather than a modifier on the shared one, so nothing else that uses
+     .glossy-3d is affected. */
+  .glossy-3d-subtle {
+    position: relative;
+    background: linear-gradient(165deg, var(--color-premium-elevated) 0%, var(--color-premium-surface) 45%, var(--color-premium-bg) 100%);
+    border: 1.5px solid rgba(212, 167, 44, 0.35);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -3px 6px rgba(0, 0, 0, 0.25),
+      inset 1.5px 0 0 rgba(255, 255, 255, 0.03),
+      inset -1.5px 0 0 rgba(0, 0, 0, 0.11),
+      0 3px 8px rgba(0, 0, 0, 0.21),
+      0 0 10px rgba(212, 167, 44, 0.05);
+  }
+  .glossy-3d-subtle::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      radial-gradient(130% 65% at 28% -10%, rgba(240, 194, 75, 0.14) 0%, transparent 60%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.025) 22%, transparent 46%);
+    pointer-events: none;
+  }
+}
