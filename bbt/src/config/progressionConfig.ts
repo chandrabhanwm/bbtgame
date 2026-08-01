@@ -121,10 +121,24 @@ export const progressionConfig = {
   doubleClaimCapPerDay: 5,
   doubleClaimBonusPercent: 0.5,
 
-  /** Flat coin reward for using the native share sheet from the
-   *  Share & Earn card. Deliberately repeatable/uncapped — the reward
-   *  only fires when the share sheet actually resolves successfully
-   *  (see handleShareAndEarn), not on every tap of the button, so
-   *  farming it requires genuinely completing a share each time. */
-  shareRewardAmount: 2000,
+  /** Manual control for the points leaderboard, which now runs forever
+   *  with no automatic reset (replacing the old weekly Monday reset +
+   *  Sunday freeze). Bump this number and redeploy to reset every
+   *  player's points to zero — e.g. for a fresh "Season 2" — without
+   *  needing to touch Firestore by hand. Kept invisible to players for
+   *  now; purely a background mechanism for manual control. */
+  pointsSeasonId: 1,
+
+  /** Both the referrer and the new signup get this many coins when a
+   *  referral completes — a flat, one-time grant, deliberately not
+   *  tied to the pool/economy we spent so long balancing, so it can't
+   *  disturb that pacing. */
+  referralBonusCoins: 2000,
+  /** How many referral bonuses one player can RECEIVE as a referrer
+   *  per day — capped to prevent unlimited farming via repeated
+   *  signups, even though the reward triggers on signup alone rather
+   *  than a real engagement milestone (an accepted tradeoff for a
+   *  small, trusted testing group, not a production-grade anti-fraud
+   *  system). */
+  dailyReferralCap: 10,
 };

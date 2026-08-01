@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, Dispatch, SetStateAction } from 'react';
 import { Business, PlayerStats } from '../types';
 import { auth } from '../firebase/config';
 import { SaveService, GameSave, LeaderboardEntry } from '../services/SaveService';
 import { getEmpireTotalInvested } from '../utils/districtProgress';
+import { getPendingReferralUid, clearPendingReferral } from '../utils/referral';
+import { progressionConfig } from '../config/progressionConfig';
+import { applyContestPoints, todayDateString } from '../utils/weeklyContest';
 
 interface UseCloudSyncParams {
   /** True only for a genuinely fresh device/browser with no local save
@@ -16,7 +19,7 @@ interface UseCloudSyncParams {
   unlockedDistrictsMap: Record<string, boolean>;
   rewardedDistrictsMap: Record<string, boolean>;
   setBusinessesByDistrict: (v: Record<string, Business[]>) => void;
-  setStats: (v: PlayerStats) => void;
+  setStats: Dispatch<SetStateAction<PlayerStats>>;
   setAvatarEmoji: (v: string) => void;
   setPlayerName: (v: string) => void;
   restoreDistrictState: (data: { currentDistrictId: string; unlockedDistricts: Record<string, boolean>; rewardedDistricts: Record<string, boolean> }) => void;
@@ -60,6 +63,47 @@ export function useCloudSync(params: UseCloudSyncParams) {
   const [lastLeaderboardFetchAt, setLastLeaderboardFetchAt] = useState<number>(Date.now());
   const [myWeeklyRank, setMyWeeklyRank] = useState<number | null>(null);
   const [isBrandNewPlayer, setIsBrandNewPlayer] = useState(false);
+  const [referralCreditsJustEarned, setReferralCreditsJustEarned] = useState(0);
+
+  useEffect(() => {
+    const uid = auth.currentUser?.uid ?? null;
+    if (!uid) return;
+
+    // Checks once per app open for anyone who signed up using this
+    // player's own referral link since the last time they played —
+    // this is the ONLY place the referrer actually gets credited,
+    // since the new signup's own device has no permission to write
+    // into the referrer's account directly (Firestore rules only allow
+    // writing your own data). Capped at progressionConfig.dailyReferralCap
+    // per real calendar day, same cap-checking pattern as the other
+    // daily limits elsewhere in the app.
+    SaveService.fetchUnclaimedReferrals(uid).then((unclaimed) => {
+      if (unclaimed.length === 0) return;
+
+      setStats((prev) => {
+        const today = todayDateString();
+        const dayRolledOver = prev.dailyReferralClaimsDate !== today;
+        const claimsToday = dayRolledOver ? 0 : prev.dailyReferralClaimsCount;
+        const remainingCapToday = Math.max(0, progressionConfig.dailyReferralCap - claimsToday);
+        const toCredit = unclaimed.slice(0, remainingCapToday);
+
+        if (toCredit.length === 0) return prev;
+
+        let updated = { ...prev, dailyReferralClaimsCount: claimsToday, dailyReferralClaimsDate: today };
+        for (const referral of toCredit) {
+          const { stats: withPoints } = applyContestPoints(updated, 'referral');
+          updated = {
+            ...withPoints,
+            cash: updated.cash + progressionConfig.referralBonusCoins,
+            dailyReferralClaimsCount: updated.dailyReferralClaimsCount + 1,
+          };
+          SaveService.markReferralClaimed(referral.id).then(() => {});
+        }
+        setReferralCreditsJustEarned(toCredit.length);
+        return updated;
+      });
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,6 +151,17 @@ export function useCloudSync(params: UseCloudSyncParams) {
           const googleName = auth.currentUser?.displayName;
           if (googleName) setPlayerName(googleName);
           setIsBrandNewPlayer(true);
+
+          // If this signup came from a referral link, record it now —
+          // this is the ONLY moment it's safe to do so, since it's the
+          // one confirmed instant this is a genuinely new account, not
+          // a returning player who happens to still have that old
+          // ?ref= param sitting in storage from a much earlier visit.
+          const referrerUid = getPendingReferralUid();
+          if (referrerUid && referrerUid !== uid) {
+            SaveService.createReferralRecord(uid, referrerUid).then(() => {});
+          }
+          clearPendingReferral();
         }
       } else {
         // This device already has its own local save — but that alone
@@ -145,9 +200,13 @@ export function useCloudSync(params: UseCloudSyncParams) {
       // genuinely new account with nothing to restore — either way,
       // it's now actually safe to push the current state.
       SaveService.cloudSave(uid, latestSaveDataRef.current).then(() => {});
-      const { businessesByDistrict: bbd, stats: currentStats, avatarEmoji: emoji, playerName: name } = latestSaveDataRef.current;
+      const { businessesByDistrict: bbd, stats: currentStats, avatarEmoji: emoji, playerName: name, currentDistrictId: districtId } = latestSaveDataRef.current;
       const netWorth = currentStats.cash + getEmpireTotalInvested(bbd);
-      SaveService.updateLeaderboardEntry(uid, { playerName: name, avatarEmoji: emoji, netWorth, level: currentStats.level, updatedAt: Date.now(), weeklyPoints: currentStats.weeklyPoints });
+      SaveService.updateLeaderboardEntry(uid, {
+        playerName: name, avatarEmoji: emoji, netWorth, level: currentStats.level, updatedAt: Date.now(), weeklyPoints: currentStats.weeklyPoints,
+        currentDistrictId: districtId, totalPlayTimeSeconds: currentStats.totalPlayTimeSeconds, adsWatchedCount: currentStats.adsWatchedCount,
+        businessesBoughtCount: currentStats.businessesBoughtCount, poolClaimsCount: currentStats.poolClaimsCount,
+      });
       SaveService.fetchTopLeaderboard(20).then(setRealLeaderboard);
       SaveService.fetchMyRank(netWorth).then(setMyRealRank);
       SaveService.fetchTopWeeklyContest(20).then(setWeeklyContestBoard);
@@ -171,7 +230,7 @@ export function useCloudSync(params: UseCloudSyncParams) {
       if (!uid) return; // not signed in yet (or Firebase unavailable) — local save already happened, nothing lost
       SaveService.cloudSave(uid, latestSaveDataRef.current).then(() => {});
 
-      const { businessesByDistrict: bbd, stats: currentStats, avatarEmoji: emoji, playerName: name } = latestSaveDataRef.current;
+      const { businessesByDistrict: bbd, stats: currentStats, avatarEmoji: emoji, playerName: name, currentDistrictId: districtId } = latestSaveDataRef.current;
       const netWorth = currentStats.cash + getEmpireTotalInvested(bbd);
       SaveService.updateLeaderboardEntry(uid, {
         playerName: name,
@@ -180,6 +239,11 @@ export function useCloudSync(params: UseCloudSyncParams) {
         level: currentStats.level,
         updatedAt: Date.now(),
         weeklyPoints: currentStats.weeklyPoints,
+        currentDistrictId: districtId,
+        totalPlayTimeSeconds: currentStats.totalPlayTimeSeconds,
+        adsWatchedCount: currentStats.adsWatchedCount,
+        businessesBoughtCount: currentStats.businessesBoughtCount,
+        poolClaimsCount: currentStats.poolClaimsCount,
       });
     }, 120000); // every 2 minutes
 
@@ -210,5 +274,5 @@ export function useCloudSync(params: UseCloudSyncParams) {
     };
   }, []);
 
-  return { cloudUidRef, realLeaderboard, myRealRank, isBrandNewPlayer, weeklyContestBoard, myWeeklyRank, lastLeaderboardFetchAt };
+  return { cloudUidRef, realLeaderboard, myRealRank, isBrandNewPlayer, weeklyContestBoard, myWeeklyRank, lastLeaderboardFetchAt, referralCreditsJustEarned, clearReferralCreditsJustEarned: () => setReferralCreditsJustEarned(0) };
 }

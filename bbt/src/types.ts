@@ -139,6 +139,54 @@ export interface PlayerStats {
   /** The calendar day (YYYY-MM-DD) dailyDoubleClaimCount was last reset
    *  for — comparing against today's date is what triggers that reset. */
   dailyDoubleClaimDate: string;
+
+  /** Cumulative seconds the app has been actively open — incremented
+   *  once per second alongside the existing live pool tick, so it's
+   *  measuring genuine active time, not wall-clock time the app was
+   *  merely installed. Synced to the leaderboard doc as "Total Play
+   *  Time" for the requested per-player analytics view. */
+  totalPlayTimeSeconds: number;
+  /** How many times this player has completed watching a simulated ad
+   *  (Header double-claim, Portfolio double-claim, or a scratch card) —
+   *  a genuine count, separate from the Firebase Analytics ad_watched
+   *  event, which only shows aggregate totals across all players, not
+   *  a per-player breakdown. */
+  adsWatchedCount: number;
+  /** How many times this player has bought or upgraded a business —
+   *  every successful tap on a business card, first purchase or a
+   *  further level, each counts once. */
+  businessesBoughtCount: number;
+  /** How many times this player has successfully claimed the Profit
+   *  pool (Header or Portfolio, either one) — separate from how many
+   *  times they've doubled it, which is tracked by
+   *  dailyDoubleClaimCount above but resets daily, while this one
+   *  never resets. */
+  poolClaimsCount: number;
+
+  /** Whether this player has made at least one pool claim since the
+   *  2-hour cooldown was introduced. Defaults to false for every save,
+   *  new or existing — an existing player's old lastPoolClaimAt could
+   *  otherwise unexpectedly lock them out for up to 2 hours the moment
+   *  this update deploys, even though they never agreed to or expected
+   *  this new restriction. The very first claim after this feature
+   *  exists always succeeds regardless of that old timestamp; the
+   *  cooldown only starts counting from that point onward. */
+  hasClaimedSincePoolCooldown: boolean;
+
+  /** Which points-leaderboard season this player's weeklyPoints belong
+   *  to — compared against progressionConfig.pointsSeasonId. Mismatch
+   *  means a manual reset was triggered since this player last played;
+   *  their points reset to zero and this catches up to match. The
+   *  points system itself now runs forever with no automatic reset —
+   *  this is the only way points ever go back to zero. */
+  pointsSeasonId: number;
+
+  /** How many referral bonuses this player has RECEIVED as a referrer
+   *  today (someone they invited signed up) — capped at 10/day per the
+   *  agreed limit. Separate from how many people they've referred
+   *  in total, which isn't capped anywhere. */
+  dailyReferralClaimsCount: number;
+  dailyReferralClaimsDate: string;
 }
 
 // LeaderboardUser removed — the old fictional-rival leaderboard is gone,

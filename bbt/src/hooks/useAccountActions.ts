@@ -3,6 +3,7 @@ import { signOutUser } from '../firebase/config';
 import { getLegacyStatus } from '../utils/legacy';
 import { generateDailyGoal } from '../utils/dailyGoal';
 import { getEmpireTotalInvested } from '../utils/districtProgress';
+import { progressionConfig } from '../config/progressionConfig';
 
 interface MilestoneState {
   icon: string;
@@ -81,6 +82,14 @@ export function useAccountActions({
         dailyUpgradePointsDate: '',
         dailyDoubleClaimCount: 0,
         dailyDoubleClaimDate: '',
+        totalPlayTimeSeconds: 0,
+        adsWatchedCount: 0,
+        businessesBoughtCount: 0,
+        poolClaimsCount: 0,
+        hasClaimedSincePoolCooldown: false,
+        pointsSeasonId: progressionConfig.pointsSeasonId,
+        dailyReferralClaimsCount: 0,
+        dailyReferralClaimsDate: '',
       });
       resetDistricts();
       setPreviewDistrictId(null);

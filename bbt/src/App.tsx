@@ -9,7 +9,7 @@ import { Landmark, Lock } from 'lucide-react';
 import { Business, PlayerStats, RewardCard } from './types';
 import { Header } from './components/Header';
 import { DailyRewardCards } from './components/DailyRewardCards';
-import { ShareAndEarnCard } from './components/ShareAndEarnCard';
+import { ShareEarnCard } from './components/ShareEarnCard';
 import { BusinessGridView } from './components/BusinessGridView';
 import { FooterTipBar } from './components/FooterTipBar';
 import { ShopDetailSheet } from './components/ShopDetailSheet';
@@ -40,8 +40,8 @@ import { useNewsTicker } from './hooks/useNewsTicker';
 import { useDistrictPreview } from './hooks/useDistrictPreview';
 import { useAccountActions } from './hooks/useAccountActions';
 import { useSessionEnforcement } from './hooks/useSessionEnforcement';
-import { getCooldownRemainingSeconds, CLAIM_COOLDOWN_MS } from './utils/cooldown';
-import { applyContestPoints } from './utils/weeklyContest';
+import { getCooldownRemainingSeconds, CLAIM_COOLDOWN_MS, formatCooldownClock } from './utils/cooldown';
+import { applyContestPoints, todayDateString, localDateStringOf } from './utils/weeklyContest';
 import { CountdownClock } from './components/CountdownClock';
 import { progressionConfig } from './config/progressionConfig';
 import { playClick, playLevelUp, playUnlock } from './utils/audio';
@@ -63,7 +63,6 @@ import { formatCash } from './utils/formatCash';
 // ceiling specifically so it still feels distinct even without hitting
 // the jackpot. Which position gets which tier is reshuffled every reset,
 // so the "exciting" card isn't always sitting in the same slot.
-const CARD_RESET_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 function generateRewardCard(tier: 'small' | 'medium' | 'rare'): RewardCard {
   let value: number;
@@ -220,6 +219,14 @@ function AppInner({ currentUid }: { currentUid: string }) {
       dailyUpgradePointsDate: '',
       dailyDoubleClaimCount: 0,
       dailyDoubleClaimDate: '',
+      totalPlayTimeSeconds: 0,
+      adsWatchedCount: 0,
+      businessesBoughtCount: 0,
+      poolClaimsCount: 0,
+      hasClaimedSincePoolCooldown: false,
+      pointsSeasonId: progressionConfig.pointsSeasonId,
+      dailyReferralClaimsCount: 0,
+      dailyReferralClaimsDate: '',
     };
 
     const saved = localSaveBelongsToThisUser ? localStorage.getItem('basti_stats') : null;
@@ -243,12 +250,15 @@ function AppInner({ currentUid }: { currentUid: string }) {
         const elapsedMinutes = Math.max(0, (Date.now() - lastClaimAt) / 60000);
         const cappedMinutes = Math.min(elapsedMinutes, progressionConfig.poolCapMinutes);
 
-        // Reward cards: if 24 hours have passed since the last reset,
-        // generate a fresh set — any scratched-but-unclaimed value from the
-        // old set simply expires, same one-rule-everywhere principle as the
-        // pool cap above.
+        // Reward cards: reset once the LOCAL calendar day has changed
+        // since the last reset — not a rolling 24-hour window from
+        // whenever the player happened to last open the app, which
+        // drifted further from real midnight every time they were a
+        // few hours late one day. Any scratched-but-unclaimed value
+        // from the old set simply expires, same one-rule-everywhere
+        // principle as the pool cap above.
         const lastCardsReset = parsed.lastCardsResetAt ?? Date.now();
-        const cardsExpired = Date.now() - lastCardsReset >= CARD_RESET_COOLDOWN_MS;
+        const cardsExpired = localDateStringOf(lastCardsReset) !== todayDateString();
         const rewardCards = cardsExpired || !parsed.rewardCards
           ? generateFreshRewardCards()
           : parsed.rewardCards;
@@ -285,6 +295,14 @@ function AppInner({ currentUid }: { currentUid: string }) {
           dailyUpgradePointsDate: parsed.dailyUpgradePointsDate ?? '',
           dailyDoubleClaimCount: parsed.dailyDoubleClaimCount ?? 0,
           dailyDoubleClaimDate: parsed.dailyDoubleClaimDate ?? '',
+          totalPlayTimeSeconds: parsed.totalPlayTimeSeconds ?? 0,
+          adsWatchedCount: parsed.adsWatchedCount ?? 0,
+          businessesBoughtCount: parsed.businessesBoughtCount ?? 0,
+          poolClaimsCount: parsed.poolClaimsCount ?? 0,
+          hasClaimedSincePoolCooldown: parsed.hasClaimedSincePoolCooldown ?? false,
+          pointsSeasonId: parsed.pointsSeasonId ?? (progressionConfig.pointsSeasonId - 1),
+          dailyReferralClaimsCount: parsed.dailyReferralClaimsCount ?? 0,
+          dailyReferralClaimsDate: parsed.dailyReferralClaimsDate ?? '',
         };
       } catch {
         return freshDefaults;
@@ -415,8 +433,11 @@ function AppInner({ currentUid }: { currentUid: string }) {
     // here explicitly (not just inside handleClaimPool) so the UI can
     // show the actual real countdown, rather than the generic "empty"
     // message that would otherwise look identical to genuinely having
-    // nothing to claim yet.
-    const poolCooldownSeconds = getCooldownRemainingSeconds(stats.lastPoolClaimAt, progressionConfig.poolClaimCooldownMinutes * 60000);
+    // nothing to claim yet. Skipped entirely for the very first claim
+    // since this cooldown was introduced (see hasClaimedSincePoolCooldown).
+    const poolCooldownSeconds = stats.hasClaimedSincePoolCooldown
+      ? getCooldownRemainingSeconds(stats.lastPoolClaimAt, progressionConfig.poolClaimCooldownMinutes * 60000)
+      : 0;
     if (poolCooldownSeconds > 0 && stats.poolCash > 0) {
       playClick();
       setPoolClaimUI({ amount: 0, state: 'cooldown', secondsRemaining: poolCooldownSeconds, totalSeconds: progressionConfig.poolClaimCooldownMinutes * 60 });
@@ -535,7 +556,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
   // both already have progress is a genuinely separate, higher-stakes
   // feature needing a real answer to "which save wins," which deserves
   // its own careful, tested pass rather than being bundled in here.
-  const { cloudUidRef, realLeaderboard, myRealRank, isBrandNewPlayer, weeklyContestBoard, myWeeklyRank, lastLeaderboardFetchAt } = useCloudSync({
+  const { cloudUidRef, realLeaderboard, myRealRank, isBrandNewPlayer, weeklyContestBoard, myWeeklyRank, lastLeaderboardFetchAt, referralCreditsJustEarned, clearReferralCreditsJustEarned } = useCloudSync({
     hadNoLocalSaveAtBoot: hadNoLocalSaveAtBootRef.current,
     businessesByDistrict, stats, avatarEmoji, playerName, currentDistrictId,
     unlockedDistrictsMap, rewardedDistrictsMap,
@@ -599,6 +620,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
         return {
           ...prev,
           poolCash: nextPool,
+          totalPlayTimeSeconds: prev.totalPlayTimeSeconds + 1,
         };
       });
     }, 1000);
@@ -762,7 +784,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
   // Every way a player receives cash outside a business purchase/upgrade
   // — extracted into its own hook per the Phase 0 architecture cleanup
   // (src/hooks/useClaimHandlers.ts). Behavior preserved exactly.
-  const { handleClaimPool, handleDoubleClaim, handleScratchCard, handleClaimCard, handleShareAndEarn } = useClaimHandlers({
+  const { handleClaimPool, handleDoubleClaim, handleScratchCard, handleClaimCard } = useClaimHandlers({
     stats, businessesByDistrict, setStats, triggerCashPulse, triggerMoneyFlight,
   });
 
@@ -1034,7 +1056,10 @@ function AppInner({ currentUid }: { currentUid: string }) {
                         onClaim={handleClaimCard}
                         lastCardClaimAt={stats.lastCardClaimAt}
                       />
-                      <ShareAndEarnCard onShare={handleShareAndEarn} />
+                      <ShareEarnCard
+                        referrerUid={currentUid}
+                        bonusCoins={progressionConfig.referralBonusCoins}
+                      />
                     </>
                   )}
 
@@ -1238,13 +1263,19 @@ function AppInner({ currentUid }: { currentUid: string }) {
                       + {formatCash(poolClaimUI.amount)} ✓
                     </div>
                     <div className="font-bold text-[19px] mt-0.5" style={{ color: 'var(--color-premium-green-500)' }}>Collected!</div>
-                    <button
-                      onClick={handleHeaderDoubleClaim}
-                      className="w-full mt-4 py-2.5 rounded-xl font-bold text-[12px] cursor-pointer"
-                      style={{ backgroundColor: 'var(--color-premium-gold-400)', color: 'var(--color-premium-text-inverse)' }}
-                    >
-                      ✨ Double it?
-                    </button>
+                    {(stats.dailyDoubleClaimDate === todayDateString() ? stats.dailyDoubleClaimCount : 0) >= progressionConfig.doubleClaimCapPerDay ? (
+                      <div className="text-[10.5px] font-semibold mt-4" style={{ color: 'var(--color-premium-text-secondary)' }}>
+                        Max {progressionConfig.doubleClaimCapPerDay} daily doubles already used — resets tomorrow.
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleHeaderDoubleClaim}
+                        className="w-full mt-4 py-2.5 rounded-xl font-bold text-[12px] cursor-pointer"
+                        style={{ backgroundColor: 'var(--color-premium-gold-400)', color: 'var(--color-premium-text-inverse)' }}
+                      >
+                        🚀 Boost Profit +50%
+                      </button>
+                    )}
                     <button
                       onClick={() => setPoolClaimUI(null)}
                       className="text-[10px] font-semibold mt-2 cursor-pointer"
@@ -1280,7 +1311,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
                     </div>
                     <div className="text-[10.5px] mt-1" style={{ color: 'var(--color-premium-text-secondary)' }}>
                       {(poolClaimUI.totalSeconds ?? 0) > 60
-                        ? 'The pool refills on its own timer — check back once this finishes.'
+                        ? `The pool refills on its own timer — ${formatCooldownClock(poolClaimUI.secondsRemaining ?? 0)} remaining.`
                         : 'A short cooldown after doubling your last claim.'}
                     </div>
                   </>
@@ -1308,7 +1339,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
                       ⚡
                     </div>
                     <div className="font-bold text-[17px]" style={{ color: 'var(--color-premium-green-500)' }}>
-                      Doubled! +{formatCash(poolClaimUI.amount)}
+                      Boosted! +{formatCash(Math.round(poolClaimUI.amount * progressionConfig.doubleClaimBonusPercent))}
                     </div>
                   </>
                 )}
@@ -1329,6 +1360,43 @@ function AppInner({ currentUid }: { currentUid: string }) {
         {/* Simulated ad for the Header claim's double-up — same reused
             mechanic as every other ad-gated moment in the app. */}
         <SimulatedAdModal isOpen={poolClaimAdOpen} countdown={poolClaimAdCountdown} />
+
+        {/* Referral celebration — shown the moment the app confirms one
+            or more people signed up using this player's own link since
+            they last played. Deliberately NOT instant for the referrer
+            (Firestore rules mean only their own device can credit their
+            own account, so this fires on THEIR next app open, not the
+            instant their friend signs up). */}
+        <AnimatePresence>
+          {referralCreditsJustEarned > 0 && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-8" style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}>
+              <motion.div
+                initial={{ scale: 0.85, opacity: 0, y: 16 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                className="relative w-full max-w-[340px] p-6 rounded-3xl text-center flex flex-col items-center glossy-3d"
+              >
+                <CoinBurst count={12} emoji="🎉" />
+                <div className="text-5xl mb-2">🎉</div>
+                <div className="font-bold text-[17px]" style={{ color: 'var(--color-premium-text)' }}>
+                  {referralCreditsJustEarned === 1 ? 'Your friend joined!' : `${referralCreditsJustEarned} friends joined!`}
+                </div>
+                <div className="font-bold text-[22px] mt-1" style={{ color: 'var(--color-premium-green-500)' }}>
+                  +{formatCash(referralCreditsJustEarned * progressionConfig.referralBonusCoins)}
+                </div>
+                <button
+                  onClick={clearReferralCreditsJustEarned}
+                  className="w-full mt-4 py-2.5 rounded-xl font-bold text-[12px] cursor-pointer"
+                  style={{ backgroundColor: 'var(--color-premium-gold-400)', color: 'var(--color-premium-text-inverse)' }}
+                >
+                  Nice!
+                </button>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
 
 
         {/* 4. UNIFIED MILESTONE CELEBRATION — level-up, district-completion,

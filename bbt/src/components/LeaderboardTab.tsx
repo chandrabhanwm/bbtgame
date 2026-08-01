@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { TrendingUp, Users, Trophy, Store, TrendingUp as UpgradeIcon, Wallet } from 'lucide-react';
+import { TrendingUp, Users, Store, TrendingUp as UpgradeIcon, Wallet, Gift } from 'lucide-react';
 import { LeaderboardEntry } from '../services/SaveService';
 import { CoinIcon } from './CoinIcon';
 import { formatCash } from '../utils/formatCash';
 import { playClick } from '../utils/audio';
-import { CountdownClock } from './CountdownClock';
+import { formatCooldownClock } from '../utils/cooldown';
 
 interface LeaderboardTabProps {
   /** Real players, fetched from Firestore — replaces the old hardcoded
@@ -45,7 +45,7 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
   myWeeklyPoints,
   lastLeaderboardFetchAt,
 }) => {
-  const [view, setView] = useState<'overall' | 'weekly'>('overall');
+  const [view, setView] = useState<'overall' | 'weekly'>('weekly');
 
   // A plain re-render tick, once a second — this is what makes the
   // "updating in Xm" countdown clock actually drain live, the same
@@ -82,23 +82,24 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
               color: view === v ? 'var(--color-premium-text-inverse)' : 'var(--color-premium-text-secondary)',
             }}
           >
-            {v === 'overall' ? 'Overall' : 'Weekly contest'}
+            {v === 'overall' ? 'Overall' : 'Points'}
           </button>
         ))}
       </div>
 
-      {/* Visible, live-ticking countdown to the next real refresh — makes
-          the 15-minute interval read as "on its own schedule," not as
-          stale or broken, since a player can see it visibly counting
-          down rather than wondering why the numbers aren't moving. */}
+      {/* A clear text countdown to the next real refresh — makes the
+          15-minute interval read as "on its own schedule," not as
+          stale or broken. Previously paired with a visual
+          CountdownClock ring showing the exact same remaining time —
+          removed, since the two together were genuinely redundant, not
+          complementary. */}
       <div
-        className="flex items-center gap-2.5 rounded-2xl px-3 py-2"
+        className="flex items-center gap-2.5 rounded-2xl px-3 py-2.5"
         style={{ backgroundColor: 'var(--color-premium-surface)', border: '1px solid var(--color-premium-border)' }}
       >
-        <CountdownClock secondsRemaining={secondsUntilNextFetch} totalSeconds={LEADERBOARD_REFRESH_MS / 1000} size={40} />
         <div>
           <div className="text-[10.5px] font-bold" style={{ color: 'var(--color-premium-text)' }}>
-            Leaderboard updates in {Math.floor(secondsUntilNextFetch / 60)}m {secondsUntilNextFetch % 60}s
+            Leaderboard updates in {formatCooldownClock(secondsUntilNextFetch)}
           </div>
           <div className="text-[9px]" style={{ color: 'var(--color-premium-text-secondary)' }}>
             Rankings refresh automatically every 15 minutes.
@@ -115,10 +116,7 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
           <span>Empire Rankings</span>
         </div>
       ) : (
-        <>
-          <ContestRewardsBanner />
-          <HowToEarnRow />
-        </>
+        <HowToEarnRow />
       )}
 
       {activeBoard.length === 0 ? (
@@ -179,7 +177,7 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
               style={{ backgroundColor: 'var(--color-premium-surface)', border: '1.5px solid var(--color-premium-gold-400)' }}
             >
               <RankRow
-                entry={{ uid: myUid ?? 'me', playerName, avatarEmoji: playerAvatar, netWorth: playerNetWorth, level: playerLevel, updatedAt: Date.now(), weeklyPoints: myWeeklyPoints }}
+                entry={{ uid: myUid ?? 'me', playerName, avatarEmoji: playerAvatar, netWorth: playerNetWorth, level: playerLevel, updatedAt: Date.now(), weeklyPoints: myWeeklyPoints, currentDistrictId: '', totalPlayTimeSeconds: 0, adsWatchedCount: 0, businessesBoughtCount: 0, poolClaimsCount: 0 }}
                 rank={myActiveRank}
                 isLast
                 isMe
@@ -193,71 +191,30 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
   );
 };
 
-const ContestRewardsBanner: React.FC = () => {
-  const now = new Date();
-  const day = now.getUTCDay(); // 0 = Sunday
-  const isFrozen = day === 0;
-
-  // Sunday 00:00 UTC — the moment the contest actually locks, which is
-  // what an active player cares about, not the later Monday reset.
-  const daysSinceMonday = day === 0 ? 6 : day - 1;
-  const thisLock = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysSinceMonday + 6, 0, 0, 0, 0));
-  const nextMonday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysSinceMonday + 7, 0, 0, 0, 0));
-
-  const targetTime = isFrozen ? nextMonday : thisLock;
-  const msLeft = targetTime.getTime() - now.getTime();
-  const daysLeft = Math.floor(msLeft / (1000 * 60 * 60 * 24));
-  const hoursLeft = Math.floor((msLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-
-  return (
-    <div
-      className="relative rounded-2xl p-3.5 overflow-hidden"
-      style={{
-        background: 'linear-gradient(145deg, var(--color-premium-gold-glow-bg, #4a3216), var(--color-premium-surface))',
-        border: '1.5px solid var(--color-premium-gold-400)',
-        boxShadow: '0 0 20px rgba(242,193,78,0.25)',
-      }}
-    >
-      <div className="flex items-center gap-2">
-        <Trophy size={20} color="var(--color-premium-gold-400)" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.4))' }} />
-        <div>
-          <div className="font-bold text-[13.5px]" style={{ color: 'var(--color-premium-gold-100)' }}>
-            Top 3 win real vouchers
-          </div>
-          <div className="text-[10px] mt-0.5" style={{ color: 'var(--color-premium-text-secondary)' }}>
-            {isFrozen ? 'Results locked for review — resets Monday' : 'Locks Saturday night, resets Monday'}
-          </div>
-        </div>
-      </div>
-      <div className="flex justify-end mt-2">
-        <div
-          className="px-2.5 py-1 rounded-full text-[10.5px] font-bold"
-          style={{ backgroundColor: 'var(--color-premium-bg)', color: 'var(--color-premium-gold-400)', border: '1px solid var(--color-premium-gold-400)' }}
-        >
-          ⏱ {isFrozen ? 'Resets in' : 'Locks in'} {daysLeft}d {hoursLeft}h
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const HowToEarnRow: React.FC = () => {
   const items = [
     { icon: Store, label: 'Buy', color: '#c96b3f' },
     { icon: UpgradeIcon, label: 'Upgrade', color: '#4a90d9' },
     { icon: Wallet, label: 'Claim', color: '#f2c14e' },
+    { icon: Gift, label: 'Scratch card', color: '#e05a9e' },
+    { icon: Users, label: 'Refer a friend', color: '#5ac97a' },
   ];
   return (
-    <div className="grid grid-cols-3 gap-1.5">
-      {items.map(({ icon: Icon, label, color }) => (
-        <div key={label} className="rounded-xl py-2 flex flex-col items-center gap-1" style={{ backgroundColor: 'var(--color-premium-surface)' }}>
-          <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: `${color}22` }}>
-            <Icon size={14} color={color} />
+    <div className="rounded-2xl p-3" style={{ backgroundColor: 'var(--color-premium-surface)', border: '1px solid var(--color-premium-border)' }}>
+      <div className="text-[10.5px] font-bold mb-2" style={{ color: 'var(--color-premium-text)' }}>
+        Every one of these earns +10 points
+      </div>
+      <div className="grid grid-cols-5 gap-1.5">
+        {items.map(({ icon: Icon, label, color }) => (
+          <div key={label} className="rounded-xl py-2 flex flex-col items-center gap-1" style={{ backgroundColor: 'var(--color-premium-elevated)' }}>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: `${color}22` }}>
+              <Icon size={14} color={color} />
+            </div>
+            <span className="text-[7px] font-bold text-center leading-tight" style={{ color: 'var(--color-premium-text)' }}>{label}</span>
+            <span className="text-[9.5px] font-bold" style={{ color: 'var(--color-premium-green-500)' }}>+10</span>
           </div>
-          <span className="text-[8px] font-bold" style={{ color: 'var(--color-premium-text)' }}>{label}</span>
-          <span className="text-[9.5px] font-bold" style={{ color: 'var(--color-premium-green-500)' }}>+10</span>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 };

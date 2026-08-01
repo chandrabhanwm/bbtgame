@@ -1,6 +1,6 @@
 import { Business, PlayerStats } from '../types';
 import { db } from '../firebase/config';
-import { doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, getCountFromServer, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, query, orderBy, limit, getDocs, getCountFromServer, where } from 'firebase/firestore';
 
 /**
  * The complete shape of a player's save data — every piece of state that
@@ -54,6 +54,17 @@ export interface LeaderboardEntry {
    *  the first time a player opens the app in a new week. See
    *  useWeeklyContest for the actual scoring logic. */
   weeklyPoints: number;
+  /** The remaining fields below are the per-player analytics set
+   *  requested directly — viewable as a clean table in the Firestore
+   *  console (or the Cloud Console's table view), rather than relying
+   *  on Firebase Analytics, which is built for aggregate trends across
+   *  all players, not a per-player breakdown. `updatedAt` above already
+   *  serves as "Last Seen", since it's rewritten every sync cycle. */
+  currentDistrictId: string;
+  totalPlayTimeSeconds: number;
+  adsWatchedCount: number;
+  businessesBoughtCount: number;
+  poolClaimsCount: number;
 }
 
 /**
@@ -257,6 +268,50 @@ export const SaveService = {
       return snap.data().count + 1;
     } catch {
       return null;
+    }
+  },
+
+  /** Creates the referral record the moment a genuinely new account
+   *  signs up via someone's referral link — keyed by the NEW user's own
+   *  uid (both to naturally prevent one person being "referred" twice,
+   *  and because Firestore's own rule requires request.auth.uid to
+   *  match the document being created). The referrer isn't credited
+   *  yet at this point — that happens separately, the next time THEY
+   *  open the app (see fetchUnclaimedReferrals below), since the new
+   *  signup's own device has no permission to write directly into the
+   *  referrer's account. */
+  async createReferralRecord(newUserUid: string, referrerUid: string): Promise<{ ok: boolean; error: string | null }> {
+    try {
+      await setDoc(doc(db, 'referrals', newUserUid), { referrerUid, newUserUid, claimed: false, createdAt: Date.now() });
+      return { ok: true, error: null };
+    } catch (err: any) {
+      return { ok: false, error: `${err.code || 'unknown'}: ${err.message || String(err)}` };
+    }
+  },
+
+  /** Fetches this player's own unclaimed incoming referrals — people
+   *  who signed up using their link, not yet credited. Called once per
+   *  app open; the caller credits each one (up to the daily cap) and
+   *  then calls markReferralClaimed for each. */
+  async fetchUnclaimedReferrals(referrerUid: string): Promise<Array<{ id: string; referrerUid: string; newUserUid: string; claimed: boolean; createdAt: number }>> {
+    try {
+      const q = query(collection(db, 'referrals'), where('referrerUid', '==', referrerUid), where('claimed', '==', false));
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+    } catch {
+      return [];
+    }
+  },
+
+  /** Marks a specific referral as claimed, once the referrer has been
+   *  credited for it — prevents it from being credited again on a
+   *  future app open. */
+  async markReferralClaimed(referralId: string): Promise<{ ok: boolean; error: string | null }> {
+    try {
+      await updateDoc(doc(db, 'referrals', referralId), { claimed: true });
+      return { ok: true, error: null };
+    } catch (err: any) {
+      return { ok: false, error: `${err.code || 'unknown'}: ${err.message || String(err)}` };
     }
   },
 };

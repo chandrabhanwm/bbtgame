@@ -168,6 +168,7 @@ export function useBusinessActions({
             cash: statsPrev.cash - b.cost,
             hasMadeFirstPurchase: statsPrev.hasMadeFirstPurchase || isUnlocking,
             hasMadeFirstUpgrade: statsPrev.hasMadeFirstUpgrade || !isUnlocking,
+            businessesBoughtCount: statsPrev.businessesBoughtCount + 1,
             dailyGoal: goalMatchesThisAction ? { ...goal, progressCount: goal.progressCount + 1 } : statsPrev.dailyGoal,
           };
         });

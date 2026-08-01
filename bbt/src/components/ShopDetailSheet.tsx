@@ -7,7 +7,6 @@ import { MiniShopSVG } from './BusinessCard';
 import { CoinIcon } from './CoinIcon';
 import { CoinBurst } from './FX';
 import { calculateTieredProfit } from '../utils/profitCurve';
-import { LiquidCTAButton } from './LiquidCTAButton';
 
 interface ShopDetailSheetProps {
   business: Business | null;
@@ -184,15 +183,21 @@ export const ShopDetailSheet: React.FC<ShopDetailSheetProps> = ({ business, inde
               </button>
             ) : (
               <>
-                <LiquidCTAButton
+                <motion.button
+                  whileTap={isAffordable ? { scale: 0.97 } : {}}
                   onClick={handleAction}
                   disabled={!isAffordable || justBought}
-                  roundedClassName="rounded-2xl"
-                  className="w-full mt-4 py-3.5 text-sm uppercase tracking-wide"
+                  className="w-full mt-4 py-3.5 rounded-2xl font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2"
+                  style={{
+                    backgroundColor: isAffordable ? (isLocked ? 'var(--color-premium-badge-blue)' : 'var(--color-premium-badge-green)') : 'var(--color-premium-elevated)',
+                    border: `1.5px solid ${isAffordable ? (isLocked ? 'var(--color-premium-badge-blue)' : 'var(--color-premium-badge-green)') : 'var(--color-premium-border)'}`,
+                    color: isAffordable ? 'var(--color-premium-text)' : 'var(--color-premium-text-secondary)',
+                    cursor: isAffordable ? 'pointer' : 'not-allowed',
+                  }}
                 >
                   {isLocked ? <ShoppingCart size={16} /> : <ArrowUpCircle size={16} />}
                   {isLocked ? 'Buy' : 'Upgrade'} — ₹{business.cost.toLocaleString('en-IN')}
-                </LiquidCTAButton>
+                </motion.button>
 
                 {!isAffordable && (
                   <p className="text-center text-[10px] font-bold mt-2" style={{ color: 'var(--color-premium-red-400)' }}>

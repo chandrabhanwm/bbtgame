@@ -34,8 +34,15 @@ export function useClaimHandlers({ stats, businessesByDistrict, setStats, trigge
    *  cooldown on the claim action itself is what actually throttles
    *  that, independent of how fast the pool underneath it fills. */
   const handleClaimPool = (): number => {
-    const cooldownRemaining = getCooldownRemainingSeconds(stats.lastPoolClaimAt, progressionConfig.poolClaimCooldownMinutes * 60000);
-    if (cooldownRemaining > 0) return 0;
+    // The very first claim ever made since this cooldown feature was
+    // introduced always succeeds unconditionally — otherwise an
+    // existing player's old lastPoolClaimAt (from before this update
+    // even existed) could immediately, unexpectedly lock them out for
+    // up to 2 hours the moment this deploys.
+    if (stats.hasClaimedSincePoolCooldown) {
+      const cooldownRemaining = getCooldownRemainingSeconds(stats.lastPoolClaimAt, progressionConfig.poolClaimCooldownMinutes * 60000);
+      if (cooldownRemaining > 0) return 0;
+    }
     const claimed = stats.poolCash;
     if (claimed <= 0) return 0;
     setStats((prev) => {
@@ -47,6 +54,8 @@ export function useClaimHandlers({ stats, businessesByDistrict, setStats, trigge
         cash: prev.cash + prev.poolCash,
         poolCash: 0,
         lastPoolClaimAt: Date.now(),
+        poolClaimsCount: prev.poolClaimsCount + 1,
+        hasClaimedSincePoolCooldown: true,
         dailyGoal: goalMatches ? { ...goal, progressCount: goal.progressCount + 1 } : prev.dailyGoal,
       };
     });
@@ -84,6 +93,7 @@ export function useClaimHandlers({ stats, businessesByDistrict, setStats, trigge
       lastProfitDoubleClaimAt: Date.now(),
       dailyDoubleClaimCount: usedToday + 1,
       dailyDoubleClaimDate: today,
+      adsWatchedCount: prev.adsWatchedCount + 1,
     }));
     triggerCashPulse();
     triggerMoneyFlight();
@@ -111,11 +121,13 @@ export function useClaimHandlers({ stats, businessesByDistrict, setStats, trigge
     setStats((prev) => {
       const card = prev.rewardCards[index];
       if (!card || !card.scratched || card.claimed) return prev;
+      const { stats: withContestPoints } = applyContestPoints(prev, 'scratch_card');
       return {
-        ...prev,
+        ...withContestPoints,
         cash: prev.cash + card.value,
         rewardCards: prev.rewardCards.map((c, i) => (i === index ? { ...c, claimed: true } : c)),
         lastCardClaimAt: Date.now(),
+        adsWatchedCount: prev.adsWatchedCount + 1,
       };
     });
     triggerCashPulse();
@@ -141,46 +153,5 @@ export function useClaimHandlers({ stats, businessesByDistrict, setStats, trigge
     playCoin();
   };
 
-  /** Share & Earn — rewards coins for actually completing a native
-   *  share (WhatsApp, copy link, etc.), not just for tapping the
-   *  button. navigator.share() only resolves once the OS-level share
-   *  sheet reports success; if the player backs out or cancels it,
-   *  most browsers reject the promise (commonly with an AbortError),
-   *  and no reward is given. Deliberately repeatable/uncapped per
-   *  product decision — the real gate here is "did a share actually
-   *  happen," not a daily limit.
-   *
-   *  Falls back to copying the message to the clipboard on
-   *  browsers/devices without the Web Share API (e.g. most desktop
-   *  browsers) — clipboard copy always "succeeds" once permission is
-   *  granted, so that path rewards on copy rather than on a completed
-   *  share, since there's no further signal to wait for. */
-  const handleShareAndEarn = async (): Promise<{ ok: boolean; reason?: 'cancelled' | 'unsupported' | 'error' }> => {
-    const shareText = `I'm building my business empire in Basti! Come build yours 🏙️`;
-    const shareUrl = window.location.href;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: 'Basti', text: shareText, url: shareUrl });
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
-      } else {
-        return { ok: false, reason: 'unsupported' };
-      }
-    } catch (err: any) {
-      // AbortError (and equivalent "closed without sharing" cases) means
-      // the player backed out of the share sheet — no reward, and not
-      // treated as a real error either.
-      if (err?.name === 'AbortError') return { ok: false, reason: 'cancelled' };
-      return { ok: false, reason: 'error' };
-    }
-
-    setStats((prev) => ({ ...prev, cash: prev.cash + progressionConfig.shareRewardAmount }));
-    triggerCashPulse();
-    triggerMoneyFlight();
-    playCoin();
-    return { ok: true };
-  };
-
-  return { handleClaimPool, handleDoubleClaim, handleScratchCard, handleClaimCard, handleClaimDailyGoal, handleShareAndEarn };
+  return { handleClaimPool, handleDoubleClaim, handleScratchCard, handleClaimCard, handleClaimDailyGoal };
 }

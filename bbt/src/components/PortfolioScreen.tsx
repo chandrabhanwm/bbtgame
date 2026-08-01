@@ -11,11 +11,11 @@ import { getLegacyStatus } from '../utils/legacy';
 import { CoinIcon } from './CoinIcon';
 import { formatCash } from '../utils/formatCash';
 import { playClick, playUnlock } from '../utils/audio';
-import { getCooldownRemainingSeconds, CLAIM_COOLDOWN_MS } from '../utils/cooldown';
+import { getCooldownRemainingSeconds, CLAIM_COOLDOWN_MS, formatCooldownClock } from '../utils/cooldown';
+import { todayDateString } from '../utils/weeklyContest';
 import { logAnalyticsEvent } from '../firebase/config';
 import { CountdownClock } from './CountdownClock';
 import { SimulatedAdModal } from './SimulatedAdModal';
-import { LiquidCTAButton } from './LiquidCTAButton';
 interface PortfolioScreenProps {
   stats: PlayerStats;
   businessesByDistrict: Record<string, Business[]>;
@@ -93,8 +93,11 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
     // The genuine 2-hour cooldown between any two pool claims — checked
     // here explicitly so the UI can show the actual real countdown,
     // rather than silently doing nothing when there'd otherwise be
-    // something in the pool to claim.
-    const poolCooldownSeconds = getCooldownRemainingSeconds(stats.lastPoolClaimAt, progressionConfig.poolClaimCooldownMinutes * 60000);
+    // something in the pool to claim. Skipped entirely for the very
+    // first claim since this cooldown was introduced.
+    const poolCooldownSeconds = stats.hasClaimedSincePoolCooldown
+      ? getCooldownRemainingSeconds(stats.lastPoolClaimAt, progressionConfig.poolClaimCooldownMinutes * 60000)
+      : 0;
     if (poolCooldownSeconds > 0 && stats.poolCash > 0) {
       playClick();
       setCooldownSecondsRemaining(poolCooldownSeconds);
@@ -228,14 +231,17 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
                       {formatCash(stats.poolCash)}
                     </div>
                   </div>
-                  <LiquidCTAButton
+                  <button
                     onClick={handleClaim}
                     disabled={stats.poolCash <= 0}
-                    roundedClassName="rounded-xl"
-                    className="flex-shrink-0 px-4 py-2 text-[12px]"
+                    className="flex-shrink-0 px-4 py-2 rounded-xl font-bold text-[12px] cursor-pointer"
+                    style={{
+                      backgroundColor: stats.poolCash > 0 ? GOLD : 'var(--color-premium-track)',
+                      color: stats.poolCash > 0 ? 'var(--color-premium-text-inverse)' : TEXT_SECONDARY,
+                    }}
                   >
                     Claim
-                  </LiquidCTAButton>
+                  </button>
                 </div>
                 <div className="w-full h-[5px] rounded-full mt-2.5 overflow-hidden" style={{ backgroundColor: 'var(--color-premium-track)' }}>
                   <motion.div
@@ -258,14 +264,20 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
                 </div>
                 <div className="font-bold text-[17px] mt-0.5" style={{ color: GREEN }}>Collected!</div>
 
-                <button
-                  onClick={handleDouble}
-                  className="w-full mt-3 py-2.5 rounded-xl font-bold text-[12px] flex items-center justify-center gap-1.5 cursor-pointer"
-                  style={{ backgroundColor: GOLD, color: 'var(--color-premium-text-inverse)' }}
-                >
-                  <Sparkles size={13} />
-                  Double it? +{formatCash(lastClaimedAmount)} more
-                </button>
+                {(stats.dailyDoubleClaimDate === todayDateString() ? stats.dailyDoubleClaimCount : 0) >= progressionConfig.doubleClaimCapPerDay ? (
+                  <div className="text-[10.5px] font-semibold mt-3" style={{ color: TEXT_SECONDARY }}>
+                    Max {progressionConfig.doubleClaimCapPerDay} daily doubles already used — resets tomorrow.
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleDouble}
+                    className="w-full mt-3 py-2.5 rounded-xl font-bold text-[12px] flex items-center justify-center gap-1.5 cursor-pointer"
+                    style={{ backgroundColor: GOLD, color: 'var(--color-premium-text-inverse)' }}
+                  >
+                    <Sparkles size={13} />
+                    Boost Profit +{formatCash(Math.round(lastClaimedAmount * progressionConfig.doubleClaimBonusPercent))} (+50%)
+                  </button>
+                )}
                 <button onClick={dismissOffer} className="text-[9.5px] font-semibold mt-2 cursor-pointer" style={{ color: TEXT_SECONDARY }}>
                   No thanks
                 </button>
@@ -276,7 +288,7 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
               <motion.div key="claimed" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="text-center py-2.5">
                 <div className="font-bold text-[15px] flex items-center justify-center gap-1.5" style={{ color: GREEN }}>
                   <Zap size={15} fill={GREEN} />
-                  Doubled! +{formatCash(lastClaimedAmount)}
+                  Boosted! +{formatCash(Math.round(lastClaimedAmount * progressionConfig.doubleClaimBonusPercent))}
                 </div>
               </motion.div>
             )}
@@ -289,7 +301,7 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
                 </div>
                 <div className="text-[9.5px] mt-1" style={{ color: TEXT_SECONDARY }}>
                   {cooldownTotalSeconds > 60
-                    ? 'The pool refills on its own timer — check back once this finishes.'
+                    ? `The pool refills on its own timer — ${formatCooldownClock(cooldownSecondsRemaining)} remaining.`
                     : 'A short cooldown after doubling your last claim.'}
                 </div>
               </motion.div>

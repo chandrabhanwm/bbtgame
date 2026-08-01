@@ -12,12 +12,28 @@ interface CountdownClockProps {
   size?: number;
 }
 
+/** Compact label for inside the small ring itself — "1h 59m" or "45m"
+ *  once minutes or hours are involved (no room for seconds at this
+ *  size), or the bare seconds count once under a minute, matching how
+ *  a real clock reads at a glance rather than showing every digit. */
+function compactClockLabel(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(s / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${s}s`;
+}
+
 /**
  * A real, visibly-draining circular countdown — not a static line of
  * text. The ring empties smoothly as secondsRemaining ticks down, and
- * the number in the center updates every second, giving the "clock
- * running down to unlock" feeling directly, rather than describing it
- * in words.
+ * the label in the center updates every second. Previously showed the
+ * raw seconds count regardless of scale — fine for a 60-second
+ * double-claim cooldown, but unreadable for the 2-hour pool cooldown
+ * (a number like "7182" crammed into a 72px circle). Now shows a
+ * genuine clock-style label instead, scaling to whichever unit
+ * actually fits.
  */
 export const CountdownClock: React.FC<CountdownClockProps> = ({ secondsRemaining, totalSeconds, size = 64 }) => {
   const radius = (size - 8) / 2;
@@ -51,9 +67,9 @@ export const CountdownClock: React.FC<CountdownClockProps> = ({ secondsRemaining
       </svg>
       <span
         className="font-bold tabular-nums"
-        style={{ fontSize: size * 0.32, color: 'var(--color-premium-text)' }}
+        style={{ fontSize: size * (compactClockLabel(secondsRemaining).length > 3 ? 0.22 : 0.32), color: 'var(--color-premium-text)' }}
       >
-        {secondsRemaining}
+        {compactClockLabel(secondsRemaining)}
       </span>
     </div>
   );
