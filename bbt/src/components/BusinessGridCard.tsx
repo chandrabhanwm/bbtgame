@@ -60,6 +60,21 @@ const BusinessIcon: React.FC<{ business: Business }> = ({ business }) => {
   );
 };
 
+/** Level-tier colors for a business's card — L1 (just bought, not yet
+ *  upgraded) deliberately gets no special treatment, since it isn't an
+ *  achievement yet. L2 through L6 each get their own distinct color, so a
+ *  player can tell how invested a business is at a glance across an
+ *  entire grid, without reading every level number individually. */
+function getLevelTierColor(level: number): { border: string; glow: string; tint: string } | null {
+  switch (level) {
+    case 2: return { border: '#CD7F32', glow: 'rgba(205,127,50,0.35)', tint: 'rgba(205,127,50,0.10)' }; // bronze
+    case 3: return { border: '#C0C0C0', glow: 'rgba(192,192,192,0.35)', tint: 'rgba(192,192,192,0.10)' }; // silver
+    case 4: return { border: '#FFD700', glow: 'rgba(255,215,0,0.40)', tint: 'rgba(255,215,0,0.12)' }; // gold
+    case 5: return { border: '#40E0D0', glow: 'rgba(64,224,208,0.40)', tint: 'rgba(64,224,208,0.12)' }; // platinum/teal
+    default: return level >= 6 ? { border: '#A855F7', glow: 'rgba(168,85,247,0.45)', tint: 'rgba(168,85,247,0.14)' } : null; // diamond/purple
+  }
+}
+
 export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, index, imageUrl, onSelect, justUpdated = false, cash, contestPointsCelebrating = false }) => {
   const category = getBusinessCategory(business.id);
   const isOwned = business.level > 0;
@@ -78,6 +93,8 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
     return () => clearTimeout(t);
   }, [justUpdated]);
 
+  const levelTier = getLevelTierColor(business.level);
+
   return (
     <motion.button
       whileTap={{ scale: 0.97 }}
@@ -87,7 +104,12 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
       className="glossy-3d relative flex flex-col rounded-[14px] text-left cursor-pointer"
       style={{
         minHeight: '156px',
-        boxShadow: celebrating ? '0 0 0 2px var(--color-premium-gold-400), 0 0 16px rgba(212, 167, 44, 0.45)' : undefined,
+        boxShadow: celebrating
+          ? '0 0 0 2px var(--color-premium-gold-400), 0 0 16px rgba(212, 167, 44, 0.45)'
+          : levelTier
+          ? `0 0 0 1.5px ${levelTier.border}, 0 0 14px ${levelTier.glow}`
+          : undefined,
+        backgroundColor: !celebrating && levelTier ? levelTier.tint : undefined,
       }}
     >
       {celebrating && (
@@ -196,7 +218,7 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
             animate={{ scale: celebrating ? [1, 1.15, 1] : 1 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
             className="w-fit px-2 py-[2px] rounded-[5px] text-[9px] font-bold text-white flex-shrink-0"
-            style={{ backgroundColor: 'var(--color-premium-badge-green)', lineHeight: '1.6' }}
+            style={{ backgroundColor: levelTier ? levelTier.border : 'var(--color-premium-badge-green)', lineHeight: '1.6' }}
           >
             LEVEL {business.level}
           </motion.span>

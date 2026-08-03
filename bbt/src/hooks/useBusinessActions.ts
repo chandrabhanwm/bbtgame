@@ -1,6 +1,7 @@
 import { Business, PlayerStats } from '../types';
 import { calculateTieredProfit } from '../utils/profitCurve';
 import { applyContestPoints } from '../utils/weeklyContest';
+import { districtUsesStrategyLayer, getNextLevelCost, recomputeDistrictProfits } from '../utils/strategyEngine';
 
 const LEVEL_UP_CASH_BONUS = 1000;
 
@@ -16,6 +17,10 @@ interface UseBusinessActionsParams {
   stats: PlayerStats;
   cashRef: React.MutableRefObject<number>;
   currentDistrictName: string;
+  /** The current district's own id (e.g. 'badeban', 'katra') — needed to
+   *  check whether this district uses the new fixed-6-level + synergy
+   *  system, and to look up the right cost/income tables if so. */
+  currentDistrictId: string;
   setBusinesses: (updater: Business[] | ((prev: Business[]) => Business[])) => void;
   setStats: React.Dispatch<React.SetStateAction<PlayerStats>>;
   setMilestone: (m: MilestoneState | null) => void;
@@ -38,7 +43,7 @@ interface UseBusinessActionsParams {
  * specific stale-closure fix already documented below.
  */
 export function useBusinessActions({
-  stats, cashRef, currentDistrictName, setBusinesses, setStats, setMilestone,
+  stats, cashRef, currentDistrictName, currentDistrictId, setBusinesses, setStats, setMilestone,
   setShowConfetti, setJustUpdatedBusinessId, triggerCashPulse, pushNewsEvent, playLevelUp, triggerContestPointsCelebration,
 }: UseBusinessActionsParams) {
   const triggerXpGain = (xpAmount: number) => {
@@ -99,26 +104,42 @@ export function useBusinessActions({
     let contestPointsAwarded = false;
 
     setBusinesses((prev) => {
-      return prev.map((b) => {
+      const usesStrategyLayer = districtUsesStrategyLayer(currentDistrictId);
+
+      // For strategy-layer businesses, the cost to check against is the
+      // fixed level-table cost, not the legacy baseCost*costMultiplier^level
+      // formula — and Level 6 is a genuine hard cap, not just a display
+      // preference, since the whole point of the fixed-6-level design is
+      // that mastery has a real, reachable end rather than compounding
+      // forever.
+      const target = prev.find(b => b.id === id);
+      if (!target) return prev;
+      const actualCost = usesStrategyLayer ? getNextLevelCost(currentDistrictId, id, target.level) : target.cost;
+      if (actualCost === null) return prev; // already at max level (6) — nothing to buy
+      if (cashRef.current < actualCost) return prev;
+
+      const updated = prev.map((b) => {
         if (b.id !== id) return b;
 
         // Single source of truth for "can we afford this": cashRef,
         // checked and updated synchronously right here, not the stats
         // closure. `prev` (via the outer .map) is likewise always the
         // true current business state, never a stale snapshot.
-        if (cashRef.current < b.cost) {
-          return b;
-        }
-
-        purchaseSucceeded = true;
-        cashRef.current -= b.cost; // deduct immediately so a second rapid
+        cashRef.current -= actualCost; // deduct immediately so a second rapid
                                     // call sees the post-deduction balance
                                     // even before React re-renders
 
         const isUnlocking = b.level === 0;
         const newLvl = b.level + 1;
-        const nextCost = Math.round(b.baseCost * Math.pow(b.costMultiplier, newLvl));
-        const nextProfit = calculateTieredProfit(b.baseProfitPerMin, newLvl);
+        const nextCost = usesStrategyLayer
+          ? (getNextLevelCost(currentDistrictId, id, newLvl) ?? actualCost) // null at max level (6) — cost display becomes irrelevant since the button hides
+          : Math.round(b.baseCost * Math.pow(b.costMultiplier, newLvl));
+        // profitPerMin gets its real, synergy-adjusted value in the
+        // recompute pass below for strategy-layer districts — this
+        // placeholder keeps the non-strategy-layer path unchanged.
+        const nextProfit = usesStrategyLayer ? b.profitPerMin : calculateTieredProfit(b.baseProfitPerMin, newLvl);
+
+        purchaseSucceeded = true;
 
         if (isUnlocking) {
           pushNewsEvent(`🏪 ${b.name} purchased`);
@@ -165,7 +186,7 @@ export function useBusinessActions({
           contestPointsAwarded = pointsAwarded;
           return {
             ...withContestPoints,
-            cash: statsPrev.cash - b.cost,
+            cash: statsPrev.cash - actualCost,
             hasMadeFirstPurchase: statsPrev.hasMadeFirstPurchase || isUnlocking,
             hasMadeFirstUpgrade: statsPrev.hasMadeFirstUpgrade || !isUnlocking,
             businessesBoughtCount: statsPrev.businessesBoughtCount + 1,
@@ -189,9 +210,15 @@ export function useBusinessActions({
           level: newLvl,
           cost: nextCost,
           profitPerMin: nextProfit,
-          status: 'unlocked',
+          status: 'unlocked' as const,
         };
       });
+
+      // Strategy-layer districts: recompute EVERY business's profitPerMin
+      // now that ownership has changed — a single new purchase can
+      // activate or strengthen a synergy on a completely different
+      // business that didn't itself change level at all.
+      return usesStrategyLayer ? recomputeDistrictProfits(currentDistrictId, updated) : updated;
     });
 
     return purchaseSucceeded;

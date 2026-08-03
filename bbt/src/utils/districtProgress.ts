@@ -1,6 +1,7 @@
 import { Business } from '../types';
 import { progressionConfig } from '../config/progressionConfig';
 import { calculateTieredProfit } from './profitCurve';
+import { districtUsesStrategyLayer, getStrategyLevelData } from './strategyEngine';
 
 /**
  * All district-progress numbers (income, completion, stars, level) are
@@ -20,15 +21,28 @@ export function getDistrictIncome(businesses: Business[]): number {
 /** What a district could earn if every business were purchased once (but
  *  not further upgraded) — used by the locked-district preview to answer
  *  "what am I unlocking?" before anything has actually been bought. */
-export function getDistrictPotentialIncome(businesses: Business[]): number {
-  return businesses.reduce((sum, b) => sum + b.baseProfitPerMin, 0);
+export function getDistrictPotentialIncome(businesses: Business[], districtId?: string): number {
+  const usesStrategyLayer = districtId ? districtUsesStrategyLayer(districtId) : false;
+  return businesses.reduce((sum, b) => {
+    if (usesStrategyLayer && districtId) {
+      const data = getStrategyLevelData(districtId, b.id);
+      return sum + (data ? data.income[0] : b.baseProfitPerMin);
+    }
+    return sum + b.baseProfitPerMin;
+  }, 0);
 }
 
 /** Sum of every business's baseCost — the true cost of building out this
  *  entire district from scratch, regardless of what's actually been
  *  bought so far. Used to scale the completion reward to the district's
  *  real expense instead of paying a flat amount everywhere. */
-export function getDistrictTotalBuildoutCost(businesses: Business[]): number {
+export function getDistrictTotalBuildoutCost(businesses: Business[], districtId?: string): number {
+  if (districtId && districtUsesStrategyLayer(districtId)) {
+    return businesses.reduce((sum, b) => {
+      const data = getStrategyLevelData(districtId, b.id);
+      return sum + (data ? data.buyCost : b.baseCost);
+    }, 0);
+  }
   return businesses.reduce((sum, b) => sum + b.baseCost, 0);
 }
 
@@ -37,8 +51,8 @@ export function getDistrictTotalBuildoutCost(businesses: Business[]): number {
  *  cost, so an expensive district's completion pays proportionally more
  *  than a cheap one's, instead of every district paying the same flat
  *  amount regardless of how much it actually cost to build out. */
-export function getDistrictCompletionReward(businesses: Business[]): number {
-  return Math.round(getDistrictTotalBuildoutCost(businesses) * progressionConfig.completionRewardPercent);
+export function getDistrictCompletionReward(businesses: Business[], districtId?: string): number {
+  return Math.round(getDistrictTotalBuildoutCost(businesses, districtId) * progressionConfig.completionRewardPercent);
 }
 
 export function getDistrictBusinessesOwned(businesses: Business[]): number {
@@ -106,7 +120,17 @@ export function getDistrictProgress(businesses: Business[]): DistrictProgressSum
  *  same rounding App.tsx's handleUpgrade uses per level, so this always
  *  matches what really left the player's cash balance. A level-0 (never
  *  purchased) business contributes 0. */
-export function getBusinessTotalInvested(business: Business): number {
+export function getBusinessTotalInvested(business: Business, districtId?: string): number {
+  if (districtId && districtUsesStrategyLayer(districtId)) {
+    const data = getStrategyLevelData(districtId, business.id);
+    if (data) {
+      let total = business.level > 0 ? data.buyCost : 0;
+      for (let lvl = 2; lvl <= business.level; lvl++) {
+        total += data.upgradeCosts[lvl - 2];
+      }
+      return total;
+    }
+  }
   let total = 0;
   for (let lvl = 1; lvl <= business.level; lvl++) {
     total += Math.round(business.baseCost * Math.pow(business.costMultiplier, lvl));
@@ -117,7 +141,7 @@ export function getBusinessTotalInvested(business: Business): number {
 /** Same, summed across every business in every district — the "invested"
  *  half of Net Worth (cash + this). */
 export function getEmpireTotalInvested(businessesByDistrict: Record<string, Business[]>): number {
-  return Object.values(businessesByDistrict).reduce((grandTotal, districtBusinesses) => {
-    return grandTotal + districtBusinesses.reduce((sum, b) => sum + getBusinessTotalInvested(b), 0);
+  return Object.entries(businessesByDistrict).reduce((grandTotal, [districtId, districtBusinesses]) => {
+    return grandTotal + districtBusinesses.reduce((sum, b) => sum + getBusinessTotalInvested(b, districtId), 0);
   }, 0);
 }

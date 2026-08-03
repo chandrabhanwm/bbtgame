@@ -48,6 +48,16 @@ export interface LeaderboardEntry {
   playerName: string;
   avatarEmoji: string;
   netWorth: number;
+  /** The new primary ranking metric for the "Overall" tab — how
+   *  efficiently a player is actually playing, not just how much they've
+   *  spent or how long they've played. Replaces netWorth as the sort key
+   *  specifically because net worth doesn't distinguish a player who's
+   *  mastered synergies from one who's rushed through spending the same
+   *  money badly; income/min does. netWorth itself is kept here
+   *  unchanged, still synced, just no longer the leaderboard's sort key —
+   *  Portfolio's own net worth display is entirely separate from this
+   *  collection and is untouched by this change. */
+  profitPerMin: number;
   level: number;
   updatedAt: number;
   /** This week's contest points — action-based, resets to 0 client-side
@@ -217,12 +227,12 @@ export const SaveService = {
     }
   },
 
-  /** Fetches the real top N players, ordered by net worth — genuine
-   *  competition against real accounts, replacing the previous
-   *  hardcoded fictional rival list entirely. */
+  /** Fetches the real top N players, ordered by income/min — a genuine
+   *  measure of how well someone is actually playing, replacing the
+   *  earlier net-worth-based ranking. */
   async fetchTopLeaderboard(limitCount: number = 50): Promise<Array<LeaderboardEntry & { uid: string }>> {
     try {
-      const q = query(collection(db, 'leaderboard'), orderBy('netWorth', 'desc'), limit(limitCount));
+      const q = query(collection(db, 'leaderboard'), orderBy('profitPerMin', 'desc'), limit(limitCount));
       const snap = await getDocs(q);
       return snap.docs.map((d) => ({ uid: d.id, ...(d.data() as LeaderboardEntry) }));
     } catch {
@@ -230,17 +240,16 @@ export const SaveService = {
     }
   },
 
-  /** A player's real rank — computed as "how many players have a
-   *  strictly higher net worth than me, plus one." Uses Firestore's
-   *  count aggregation rather than downloading every single player's
-   *  document just to count them, which wouldn't scale past a small
-   *  number of players. Returns null if the count can't be determined
-   *  (e.g. the security rules aren't set up to allow it yet) — callers
-   *  should treat that as "rank unknown," not crash or show a wrong
-   *  number. */
-  async fetchMyRank(myNetWorth: number): Promise<number | null> {
+  /** A player's real rank — computed as "how many players have strictly
+   *  higher income/min than me, plus one." Uses Firestore's count
+   *  aggregation rather than downloading every single player's document
+   *  just to count them, which wouldn't scale past a small number of
+   *  players. Returns null if the count can't be determined (e.g. the
+   *  security rules aren't set up to allow it yet) — callers should
+   *  treat that as "rank unknown," not crash or show a wrong number. */
+  async fetchMyRank(myProfitPerMin: number): Promise<number | null> {
     try {
-      const q = query(collection(db, 'leaderboard'), where('netWorth', '>', myNetWorth));
+      const q = query(collection(db, 'leaderboard'), where('profitPerMin', '>', myProfitPerMin));
       const snap = await getCountFromServer(q);
       return snap.data().count + 1;
     } catch {

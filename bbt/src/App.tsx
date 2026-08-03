@@ -24,7 +24,6 @@ import { buildBusinessesForDistrict, districtEconomies, getDistrictTotalCost } f
 import { bastiCity, getDistrict } from './data/cityMapData';
 import { DistrictProvider, useDistrict } from './context/DistrictContext';
 import { getDistrictProgress, isDistrictCompleted, getDistrictCompletionReward, getEmpireTotalInvested } from './utils/districtProgress';
-import { calculateTieredProfit } from './utils/profitCurve';
 import { generateDailyGoal } from './utils/dailyGoal';
 import { getLegacyIncomeMultiplier } from './utils/legacy';
 import { subscribeToAuthChanges, auth, signOutUser, checkRedirectResult, logAnalyticsEvent } from './firebase/config';
@@ -556,7 +555,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
   // both already have progress is a genuinely separate, higher-stakes
   // feature needing a real answer to "which save wins," which deserves
   // its own careful, tested pass rather than being bundled in here.
-  const { cloudUidRef, realLeaderboard, myRealRank, isBrandNewPlayer, weeklyContestBoard, myWeeklyRank, lastLeaderboardFetchAt, referralCreditsJustEarned, clearReferralCreditsJustEarned } = useCloudSync({
+  const { cloudUidRef, realLeaderboard, myRealRank, isBrandNewPlayer, weeklyContestBoard, myWeeklyRank, lastLeaderboardFetchAt, referralCreditsJustEarned, clearReferralCreditsJustEarned, signupReferralBonusEarned, clearSignupReferralBonusEarned } = useCloudSync({
     hadNoLocalSaveAtBoot: hadNoLocalSaveAtBootRef.current,
     businessesByDistrict, stats, avatarEmoji, playerName, currentDistrictId,
     unlockedDistrictsMap, rewardedDistrictsMap,
@@ -630,12 +629,23 @@ function AppInner({ currentUid }: { currentUid: string }) {
 
   // Recalculate profit stream when ANY district's business levels change —
   // owning shops in Katra should still earn while you're looking at Badeban.
+  //
+  // Sums each business's own `profitPerMin` directly — that field is
+  // already correctly maintained by handleUpgrade for every district,
+  // whether it's the legacy calculateTieredProfit formula or, for the 10
+  // strategy-layer districts, the synergy-adjusted value recomputed by
+  // recomputeDistrictProfits after every purchase. Previously this
+  // recalculated everything from baseProfitPerMin/level using the legacy
+  // formula directly — a real bug that silently ignored every synergy
+  // bonus entirely, since a business's true income and its
+  // baseProfitPerMin×level figure diverge the moment any synergy is
+  // active. Caught and fixed before this ever reached a real player.
   useEffect(() => {
     const allDistrictLists: Business[][] = Object.values(businessesByDistrict);
     const totalProfit = allDistrictLists.reduce((grandTotal: number, districtBusinesses: Business[]) => {
       const districtTotal = districtBusinesses.reduce((sum: number, b: Business) => {
         if (b.level === 0) return sum;
-        return sum + calculateTieredProfit(b.baseProfitPerMin, b.level);
+        return sum + b.profitPerMin;
       }, 0);
       return grandTotal + districtTotal;
     }, 0);
@@ -688,7 +698,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
       // double-fire of this effect can never pay the bonus twice.
       markDistrictRewarded(district.id);
 
-      const scaledReward = getDistrictCompletionReward(districtBusinesses);
+      const scaledReward = getDistrictCompletionReward(districtBusinesses, district.id);
       setStats((prev) => ({ ...prev, cash: prev.cash + scaledReward }));
       playLevelUp();
       triggerMoneyFlight();
@@ -806,6 +816,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
   const { handleUpgrade } = useBusinessActions({
     stats, cashRef,
     currentDistrictName: currentDistrictMeta?.name ?? 'Badeban',
+    currentDistrictId,
     setBusinesses, setStats, setMilestone, setShowConfetti,
     setJustUpdatedBusinessId, triggerCashPulse, pushNewsEvent, playLevelUp,
     triggerContestPointsCelebration,
@@ -1135,6 +1146,8 @@ function AppInner({ currentUid }: { currentUid: string }) {
                   playerName={playerName}
                   playerAvatar={avatarEmoji}
                   playerNetWorth={stats.cash + getEmpireTotalInvested(businessesByDistrict)}
+                  playerProfitPerMin={stats.profitPerMin}
+                  playerBusinessesBoughtCount={stats.businessesBoughtCount}
                   playerLevel={stats.level}
                   weeklyContestBoard={weeklyContestBoard}
                   myWeeklyRank={myWeeklyRank}
@@ -1182,6 +1195,8 @@ function AppInner({ currentUid }: { currentUid: string }) {
           onUpgrade={isPreviewMode ? () => {} : handleUpgrade}
           onClose={() => setSelectedShopId(null)}
           readOnly={isPreviewMode}
+          districtId={currentDistrictId}
+          districtBusinesses={displayedBusinesses}
         />
 
         {/* District unlock toast — brief, top-of-screen, auto-dismissing.
@@ -1391,6 +1406,36 @@ function AppInner({ currentUid }: { currentUid: string }) {
                   style={{ backgroundColor: 'var(--color-premium-gold-400)', color: 'var(--color-premium-text-inverse)' }}
                 >
                   Nice!
+                </button>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {signupReferralBonusEarned && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-8" style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}>
+              <motion.div
+                initial={{ scale: 0.85, opacity: 0, y: 16 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                className="relative w-full max-w-[340px] p-6 rounded-3xl text-center flex flex-col items-center glossy-3d"
+              >
+                <CoinBurst count={12} emoji="🎁" />
+                <div className="text-5xl mb-2">🎁</div>
+                <div className="font-bold text-[17px]" style={{ color: 'var(--color-premium-text)' }}>
+                  Welcome bonus!
+                </div>
+                <div className="font-bold text-[22px] mt-1" style={{ color: 'var(--color-premium-green-500)' }}>
+                  +{formatCash(progressionConfig.referralBonusCoins)}
+                </div>
+                <button
+                  onClick={clearSignupReferralBonusEarned}
+                  className="w-full mt-4 py-2.5 rounded-xl font-bold text-[12px] cursor-pointer"
+                  style={{ backgroundColor: 'var(--color-premium-gold-400)', color: 'var(--color-premium-text-inverse)' }}
+                >
+                  Let's go!
                 </button>
               </motion.div>
             </div>

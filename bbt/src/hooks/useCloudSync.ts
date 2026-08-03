@@ -64,19 +64,23 @@ export function useCloudSync(params: UseCloudSyncParams) {
   const [myWeeklyRank, setMyWeeklyRank] = useState<number | null>(null);
   const [isBrandNewPlayer, setIsBrandNewPlayer] = useState(false);
   const [referralCreditsJustEarned, setReferralCreditsJustEarned] = useState(0);
+  const [signupReferralBonusEarned, setSignupReferralBonusEarned] = useState(false);
 
-  useEffect(() => {
+  // Checks for anyone who signed up using this player's own referral
+  // link since the last check — this is the ONLY place the referrer
+  // actually gets credited, since the new signup's own device has no
+  // permission to write into the referrer's account directly
+  // (Firestore rules only allow writing your own data). Capped at
+  // progressionConfig.dailyReferralCap per real calendar day, same
+  // cap-checking pattern as the other daily limits elsewhere in the
+  // app. Extracted into its own function and called both once on
+  // mount AND on a periodic interval below — previously only ran once
+  // per app open, meaning a referrer had to fully close and reopen the
+  // app to ever see their friend's signup credited, even if they'd
+  // been sitting in the app the whole time it happened.
+  const checkForReferralCredits = () => {
     const uid = auth.currentUser?.uid ?? null;
     if (!uid) return;
-
-    // Checks once per app open for anyone who signed up using this
-    // player's own referral link since the last time they played —
-    // this is the ONLY place the referrer actually gets credited,
-    // since the new signup's own device has no permission to write
-    // into the referrer's account directly (Firestore rules only allow
-    // writing your own data). Capped at progressionConfig.dailyReferralCap
-    // per real calendar day, same cap-checking pattern as the other
-    // daily limits elsewhere in the app.
     SaveService.fetchUnclaimedReferrals(uid).then((unclaimed) => {
       if (unclaimed.length === 0) return;
 
@@ -103,6 +107,15 @@ export function useCloudSync(params: UseCloudSyncParams) {
         return updated;
       });
     });
+  };
+
+  useEffect(() => {
+    checkForReferralCredits();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(checkForReferralCredits, 120000); // every 2 minutes, matching the existing save-sync cadence
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -160,6 +173,14 @@ export function useCloudSync(params: UseCloudSyncParams) {
           const referrerUid = getPendingReferralUid();
           if (referrerUid && referrerUid !== uid) {
             SaveService.createReferralRecord(uid, referrerUid).then(() => {});
+            // The new signup's OWN bonus — credited immediately, right
+            // here, since this is their own account (no cross-account
+            // permission issue like the referrer's side has). Both
+            // people get progressionConfig.referralBonusCoins; this is
+            // the new signup's half, the referrer's half is credited
+            // separately on their own next app open (further below).
+            setStats((prev) => ({ ...prev, cash: prev.cash + progressionConfig.referralBonusCoins }));
+            setSignupReferralBonusEarned(true);
           }
           clearPendingReferral();
         }
@@ -203,12 +224,12 @@ export function useCloudSync(params: UseCloudSyncParams) {
       const { businessesByDistrict: bbd, stats: currentStats, avatarEmoji: emoji, playerName: name, currentDistrictId: districtId } = latestSaveDataRef.current;
       const netWorth = currentStats.cash + getEmpireTotalInvested(bbd);
       SaveService.updateLeaderboardEntry(uid, {
-        playerName: name, avatarEmoji: emoji, netWorth, level: currentStats.level, updatedAt: Date.now(), weeklyPoints: currentStats.weeklyPoints,
+        playerName: name, avatarEmoji: emoji, netWorth, profitPerMin: currentStats.profitPerMin, level: currentStats.level, updatedAt: Date.now(), weeklyPoints: currentStats.weeklyPoints,
         currentDistrictId: districtId, totalPlayTimeSeconds: currentStats.totalPlayTimeSeconds, adsWatchedCount: currentStats.adsWatchedCount,
         businessesBoughtCount: currentStats.businessesBoughtCount, poolClaimsCount: currentStats.poolClaimsCount,
       });
       SaveService.fetchTopLeaderboard(20).then(setRealLeaderboard);
-      SaveService.fetchMyRank(netWorth).then(setMyRealRank);
+      SaveService.fetchMyRank(currentStats.profitPerMin).then(setMyRealRank);
       SaveService.fetchTopWeeklyContest(20).then(setWeeklyContestBoard);
       SaveService.fetchMyWeeklyRank(currentStats.weeklyPoints).then(setMyWeeklyRank);
       setLastLeaderboardFetchAt(Date.now());
@@ -236,6 +257,7 @@ export function useCloudSync(params: UseCloudSyncParams) {
         playerName: name,
         avatarEmoji: emoji,
         netWorth,
+        profitPerMin: currentStats.profitPerMin,
         level: currentStats.level,
         updatedAt: Date.now(),
         weeklyPoints: currentStats.weeklyPoints,
@@ -260,9 +282,8 @@ export function useCloudSync(params: UseCloudSyncParams) {
       const uid = cloudUidRef.current;
       if (!uid) return;
       const { businessesByDistrict: bbd, stats: currentStats } = latestSaveDataRef.current;
-      const netWorth = currentStats.cash + getEmpireTotalInvested(bbd);
       SaveService.fetchTopLeaderboard(20).then(setRealLeaderboard);
-      SaveService.fetchMyRank(netWorth).then(setMyRealRank);
+      SaveService.fetchMyRank(currentStats.profitPerMin).then(setMyRealRank);
       SaveService.fetchTopWeeklyContest(20).then(setWeeklyContestBoard);
       SaveService.fetchMyWeeklyRank(currentStats.weeklyPoints).then(setMyWeeklyRank);
       setLastLeaderboardFetchAt(Date.now());
@@ -274,5 +295,5 @@ export function useCloudSync(params: UseCloudSyncParams) {
     };
   }, []);
 
-  return { cloudUidRef, realLeaderboard, myRealRank, isBrandNewPlayer, weeklyContestBoard, myWeeklyRank, lastLeaderboardFetchAt, referralCreditsJustEarned, clearReferralCreditsJustEarned: () => setReferralCreditsJustEarned(0) };
+  return { cloudUidRef, realLeaderboard, myRealRank, isBrandNewPlayer, weeklyContestBoard, myWeeklyRank, lastLeaderboardFetchAt, referralCreditsJustEarned, clearReferralCreditsJustEarned: () => setReferralCreditsJustEarned(0), signupReferralBonusEarned, clearSignupReferralBonusEarned: () => setSignupReferralBonusEarned(false) };
 }

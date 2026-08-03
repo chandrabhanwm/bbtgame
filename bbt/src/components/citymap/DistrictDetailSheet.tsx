@@ -49,7 +49,7 @@ export const DistrictDetailSheet: React.FC<DistrictDetailSheetProps> = ({ distri
     locked: { bg: 'var(--color-premium-elevated)', text: 'var(--color-premium-text-secondary)', border: 'var(--color-premium-border)' },
   };
 
-  const potentialIncome = getDistrictPotentialIncome(businesses);
+  const potentialIncome = getDistrictPotentialIncome(businesses, district.id);
   const style = statusStyle[status];
 
   return (

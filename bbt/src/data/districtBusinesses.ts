@@ -1,4 +1,5 @@
 import { Business } from '../types';
+import { districtUsesStrategyLayer, getStrategyLevelData, getStrategyDistrictL1Cost } from '../utils/strategyEngine';
 
 /**
  * Raw property data for every district, exactly as given: id, display name,
@@ -180,6 +181,7 @@ export function getDistrictEconomy(districtId: string): DistrictEconomy | undefi
  *  ceiling to the current district's own cost keeps it meaningful at
  *  every stage instead of only the first one. */
 export function getDistrictTotalCost(districtId: string): number {
+  if (districtUsesStrategyLayer(districtId)) return getStrategyDistrictL1Cost(districtId);
   const economy = getDistrictEconomy(districtId);
   if (!economy) return 0;
   return economy.properties.reduce((sum, p) => sum + p.baseCost, 0);
@@ -209,20 +211,28 @@ const TIER_THEME: { color: string; gradient: string }[] = [
 export function buildBusinessesForDistrict(districtId: string): Business[] {
   const economy = getDistrictEconomy(districtId);
   if (!economy) return [];
+  const usesStrategyLayer = districtUsesStrategyLayer(districtId);
 
   return economy.properties.map((p, i) => {
     const theme = TIER_THEME[i % TIER_THEME.length];
     const isFirst = i === 0;
     const prevBaseCost = i > 0 ? economy.properties[i - 1].baseCost : 0;
 
+    // Strategy-layer districts: the real buy cost and L1 income come from
+    // the fixed level tables, not baseCost/baseProfitPerMin (which are
+    // kept on the seed only for districts still on the legacy formula).
+    const strategyData = usesStrategyLayer ? getStrategyLevelData(districtId, p.id) : null;
+    const initialCost = strategyData ? strategyData.buyCost : p.baseCost;
+    const initialProfit = strategyData ? strategyData.income[0] : p.baseProfitPerMin;
+
     return {
       id: p.id,
       name: p.name,
       emoji: p.emoji,
-      cost: p.baseCost,
+      cost: initialCost,
       baseCost: p.baseCost,
       costMultiplier: 1.15 + i * 0.035,
-      profitPerMin: p.baseProfitPerMin,
+      profitPerMin: initialProfit,
       baseProfitPerMin: p.baseProfitPerMin,
       unlockAt: isFirst ? 0 : Math.round(prevBaseCost * 1.5),
       // "Moment Zero" — no business anywhere is pre-owned. Every
@@ -240,6 +250,7 @@ export function buildBusinessesForDistrict(districtId: string): Business[] {
       description: p.description,
       themeColor: theme.color,
       gradient: theme.gradient,
+      maxLevel: usesStrategyLayer ? 6 : undefined,
     };
   });
 }

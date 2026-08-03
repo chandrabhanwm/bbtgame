@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, ShoppingCart, ArrowUpCircle, X } from 'lucide-react';
+import { Lock, ShoppingCart, ArrowUpCircle, X, Sparkles } from 'lucide-react';
 import { Business } from '../types';
 import { playClick, playUpgrade, playUnlock, playError } from '../utils/audio';
 import { MiniShopSVG } from './BusinessCard';
 import { CoinIcon } from './CoinIcon';
 import { CoinBurst } from './FX';
 import { calculateTieredProfit } from '../utils/profitCurve';
+import { districtUsesStrategyLayer, getActiveSynergiesFor, getSynergiesUnlockedByOwning, getNextLevelCost } from '../utils/strategyEngine';
 
 interface ShopDetailSheetProps {
   business: Business | null;
@@ -18,6 +19,13 @@ interface ShopDetailSheetProps {
    *  base income, description) but every action is disabled — no buy, no
    *  upgrade, no collect. onUpgrade is never called in this mode. */
   readOnly?: boolean;
+  /** Needed to look up this business's synergy rules and level tables —
+   *  only meaningful for the 10 strategy-layer districts; harmless no-op
+   *  for any legacy district. */
+  districtId?: string;
+  /** Every business in the current district — needed to know which ones
+   *  are owned right now, for computing active/potential synergy bonuses. */
+  districtBusinesses?: Business[];
 }
 
 /**
@@ -27,7 +35,7 @@ interface ShopDetailSheetProps {
  * frozen premium design system (it was the one remaining Home Screen
  * surface still on the old bright theme).
  */
-export const ShopDetailSheet: React.FC<ShopDetailSheetProps> = ({ business, index, cash, onUpgrade, onClose, readOnly = false }) => {
+export const ShopDetailSheet: React.FC<ShopDetailSheetProps> = ({ business, index, cash, onUpgrade, onClose, readOnly = false, districtId, districtBusinesses }) => {
   const [showBurst, setShowBurst] = useState(false);
   const [justBought, setJustBought] = useState(false);
 
@@ -37,7 +45,12 @@ export const ShopDetailSheet: React.FC<ShopDetailSheetProps> = ({ business, inde
   // its real level (a district's first shop is pre-seeded at level 1 for
   // when it's actually unlocked — see StreetView's displayBusinesses note).
   const isLocked = readOnly ? true : business.level === 0;
-  const isAffordable = readOnly ? false : cash >= business.cost;
+  const usesStrategyLayer = districtId ? districtUsesStrategyLayer(districtId) : false;
+  const ownedIds = new Set((districtBusinesses ?? []).filter(b => b.level > 0).map(b => b.id));
+  const activeSynergies = usesStrategyLayer && districtId ? getActiveSynergiesFor(districtId, business.id, ownedIds) : [];
+  const potentialSynergies = usesStrategyLayer && districtId && isLocked ? getSynergiesUnlockedByOwning(districtId, business.id, ownedIds) : [];
+  const isMaxLevel = usesStrategyLayer && districtId ? getNextLevelCost(districtId, business.id, business.level) === null : false;
+  const isAffordable = readOnly ? false : (isMaxLevel ? false : cash >= business.cost);
 
   const handleAction = () => {
     if (readOnly) return; // preview mode: never buys, upgrades, or collects
@@ -143,6 +156,38 @@ export const ShopDetailSheet: React.FC<ShopDetailSheetProps> = ({ business, inde
               </div>
             </div>
 
+            {!readOnly && activeSynergies.length > 0 && (
+              <div className="mt-2 rounded-xl px-3 py-2" style={{ backgroundColor: 'var(--color-premium-elevated)', border: '1.5px solid var(--color-premium-gold-400)' }}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Sparkles size={12} color="var(--color-premium-gold-400)" />
+                  <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--color-premium-gold-400)' }}>
+                    +{Math.round(activeSynergies.reduce((s, r) => s + r.bonusPercent, 0) * 100)}% active
+                  </span>
+                </div>
+                {activeSynergies.map(s => (
+                  <div key={s.id} className="text-[10px]" style={{ color: 'var(--color-premium-text-secondary)' }}>
+                    {s.name} (+{Math.round(s.bonusPercent * 100)}%)
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!readOnly && isLocked && potentialSynergies.length > 0 && (
+              <div className="mt-2 rounded-xl px-3 py-2" style={{ backgroundColor: 'var(--color-premium-elevated)', border: '1.5px solid var(--color-premium-border)' }}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Sparkles size={12} color="var(--color-premium-text-secondary)" />
+                  <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--color-premium-text-secondary)' }}>
+                    Buying this unlocks {potentialSynergies.length} bonus{potentialSynergies.length > 1 ? 'es' : ''}
+                  </span>
+                </div>
+                {potentialSynergies.map(s => (
+                  <div key={s.id} className="text-[10px]" style={{ color: 'var(--color-premium-text-secondary)' }}>
+                    {s.name} (+{Math.round(s.bonusPercent * 100)}%)
+                  </div>
+                ))}
+              </div>
+            )}
+
             {readOnly && (
               <div className="flex items-center gap-3 mt-2">
                 <div
@@ -180,6 +225,14 @@ export const ShopDetailSheet: React.FC<ShopDetailSheetProps> = ({ business, inde
                 style={{ border: '1.5px solid var(--color-premium-border)', backgroundColor: 'var(--color-premium-elevated)', color: 'var(--color-premium-text-secondary)' }}
               >
                 <Lock size={16} /> Unlock this district first
+              </button>
+            ) : isMaxLevel ? (
+              <button
+                disabled
+                className="w-full mt-4 py-3.5 rounded-2xl font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 cursor-not-allowed"
+                style={{ border: '1.5px solid var(--color-premium-gold-400)', backgroundColor: 'var(--color-premium-elevated)', color: 'var(--color-premium-gold-400)' }}
+              >
+                <Sparkles size={16} /> Max Level Reached
               </button>
             ) : (
               <>

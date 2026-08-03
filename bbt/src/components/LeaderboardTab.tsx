@@ -19,6 +19,13 @@ interface LeaderboardTabProps {
   playerName: string;
   playerAvatar: string;
   playerNetWorth: number;
+  /** The player's own current income/min — the new primary ranking value
+   *  for the Overall tab, replacing net worth. */
+  playerProfitPerMin: number;
+  /** Secondary stat shown alongside rank — how many buy/upgrade actions
+   *  this player has made, NOT a distinct-businesses-owned count. Shown
+   *  for context, never used to sort or rank. */
+  playerBusinessesBoughtCount: number;
   playerLevel: number;
   /** Weekly contest — same real-player-fetch pattern as the overall
    *  leaderboard above, just ordered by weeklyPoints instead of net
@@ -39,6 +46,8 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
   playerName,
   playerAvatar,
   playerNetWorth,
+  playerProfitPerMin,
+  playerBusinessesBoughtCount,
   playerLevel,
   weeklyContestBoard,
   myWeeklyRank,
@@ -177,7 +186,7 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
               style={{ backgroundColor: 'var(--color-premium-surface)', border: '1.5px solid var(--color-premium-gold-400)' }}
             >
               <RankRow
-                entry={{ uid: myUid ?? 'me', playerName, avatarEmoji: playerAvatar, netWorth: playerNetWorth, level: playerLevel, updatedAt: Date.now(), weeklyPoints: myWeeklyPoints, currentDistrictId: '', totalPlayTimeSeconds: 0, adsWatchedCount: 0, businessesBoughtCount: 0, poolClaimsCount: 0 }}
+                entry={{ uid: myUid ?? 'me', playerName, avatarEmoji: playerAvatar, netWorth: playerNetWorth, profitPerMin: playerProfitPerMin, level: playerLevel, updatedAt: Date.now(), weeklyPoints: myWeeklyPoints, currentDistrictId: '', totalPlayTimeSeconds: 0, adsWatchedCount: 0, businessesBoughtCount: playerBusinessesBoughtCount, poolClaimsCount: 0 }}
                 rank={myActiveRank}
                 isLast
                 isMe
@@ -250,10 +259,15 @@ const SpotlightCard: React.FC<{ entry: LeaderboardEntry & { uid: string }; rank:
     )}
 
     {valueType === 'cash' ? (
-      <div className="flex items-center gap-1 mt-1.5 font-bold text-[11px]" style={{ color: 'var(--color-premium-green-500)' }}>
-        <CoinIcon className="w-3 h-3" premium />
-        {formatCash(entry.netWorth)}
-      </div>
+      <>
+        <div className="flex items-center gap-1 mt-1.5 font-bold text-[11px]" style={{ color: 'var(--color-premium-green-500)' }}>
+          <CoinIcon className="w-3 h-3" premium />
+          {formatCash(entry.profitPerMin)}/min
+        </div>
+        <div className="text-[7.5px] font-medium mt-0.5" style={{ color: 'var(--color-premium-text-secondary)' }}>
+          {entry.businessesBoughtCount} businesses
+        </div>
+      </>
     ) : (
       <div className="font-bold text-[11px] mt-1.5" style={{ color: 'var(--color-premium-gold-400)' }}>
         {entry.weeklyPoints} pts
@@ -295,10 +309,15 @@ const RankRow: React.FC<{ entry: LeaderboardEntry & { uid: string }; rank: numbe
 
     <div className="text-right flex-shrink-0">
       {valueType === 'cash' ? (
-        <div className="flex items-center justify-end gap-1 font-bold text-[11px]" style={{ color: 'var(--color-premium-green-500)' }}>
-          <CoinIcon className="w-3 h-3" premium />
-          {formatCash(entry.netWorth)}
-        </div>
+        <>
+          <div className="flex items-center justify-end gap-1 font-bold text-[11px]" style={{ color: 'var(--color-premium-green-500)' }}>
+            <CoinIcon className="w-3 h-3" premium />
+            {formatCash(entry.profitPerMin)}/min
+          </div>
+          <div className="text-[8px] font-medium" style={{ color: 'var(--color-premium-text-secondary)' }}>
+            {entry.businessesBoughtCount} businesses
+          </div>
+        </>
       ) : (
         <div className="font-bold text-[11px]" style={{ color: 'var(--color-premium-gold-400)' }}>
           {entry.weeklyPoints} pts

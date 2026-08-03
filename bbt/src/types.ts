@@ -17,6 +17,27 @@ export interface Business {
    *  Unset for every business today — leaving upgrades uncapped exactly
    *  as before. Reserved for a future slice. */
   maxLevel?: number;
+  /** Strategy-layer fields — set only for businesses using the new
+   *  fixed 6-level + synergy system (all 10 districts, per the verified
+   *  spec). When present, `levelCosts`/`levelIncomes` are authoritative
+   *  and `cost`/`profitPerMin`/`costMultiplier` are derived from them
+   *  rather than the old continuous growth-factor formula. Absent means
+   *  "use the legacy formula" — kept optional so nothing breaks if a
+   *  business is ever added without strategy-layer data. */
+  levelCosts?: number[]; // exactly 6 entries: [buyCost, L1→L2, L2→L3, L3→L4, L4→L5, L5→L6]
+  levelIncomes?: number[]; // exactly 6 entries: income/min at L1..L6, BEFORE synergy bonuses
+}
+
+/** A single synergy rule within one district. `requiresIds` are business
+ *  ids that must ALL be owned (level >= 1) for this bonus to apply to
+ *  `targetId`. Never crosses district boundaries — requiresIds and
+ *  targetId always refer to businesses within the same district. */
+export interface SynergyRule {
+  id: string;
+  name: string;
+  requiresIds: string[];
+  targetId: string;
+  bonusPercent: number; // e.g. 0.25 for +25%
 }
 
 /** A single Daily Reward Card. The value is generated at reset time (not
