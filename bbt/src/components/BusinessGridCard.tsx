@@ -104,14 +104,57 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
       className="glossy-3d relative flex flex-col rounded-[14px] text-left cursor-pointer"
       style={{
         minHeight: '156px',
+        // Directly overrides glossy-3d's own `border` property (a fixed
+        // teal, defined in CSS) — a box-shadow addition alone left that
+        // teal border still visibly winning underneath it, which is
+        // exactly why the level-color change read as barely visible
+        // against the much more obvious "LEVEL X" badge color change.
+        // The tier border stays visible even during the celebration
+        // glow below — the two are independent CSS properties (border
+        // vs box-shadow) and layer together rather than competing.
+        border: levelTier ? `1.5px solid ${levelTier.border}` : undefined,
         boxShadow: celebrating
           ? '0 0 0 2px var(--color-premium-gold-400), 0 0 16px rgba(212, 167, 44, 0.45)'
           : levelTier
-          ? `0 0 0 1.5px ${levelTier.border}, 0 0 14px ${levelTier.glow}`
+          ? `0 0 14px ${levelTier.glow}`
           : undefined,
-        backgroundColor: !celebrating && levelTier ? levelTier.tint : undefined,
       }}
     >
+      {/* Level-tier tint — a real DOM overlay, not a background-color on
+          the button itself. glossy-3d's own ::after pseudo-element (its
+          diagonal shine effect) sits on top of a plain background-color
+          with no z-index of its own, which was completely burying the
+          subtle tint there. An explicit z-index here guarantees this
+          renders above that shine, while still sitting below all the
+          real card content (icon, name, price), which naturally stacks
+          on top since it comes later in the DOM at the same z-index.
+          `key={business.level}` is the actual trigger — Framer Motion
+          treats a changed key as a brand-new element, so the wipe below
+          replays from `initial` every single time the level changes,
+          not just on first mount. This is what makes the reveal feel
+          like a genuine moment tied to the upgrade itself, automatic,
+          with no extra tap required. */}
+      {levelTier && (
+        <motion.div
+          key={business.level}
+          className="absolute inset-0 rounded-[14px] pointer-events-none overflow-hidden"
+          style={{ backgroundColor: levelTier.tint, zIndex: 1 }}
+          initial={{ clipPath: 'inset(0 100% 0 0)' }}
+          animate={{ clipPath: 'inset(0 0% 0 0)' }}
+          transition={{ duration: 0.65, ease: 'easeOut' }}
+        >
+          {/* A brighter leading edge on the wipe itself — makes the sweep
+              read as a deliberate "reveal," not just a fade-in. */}
+          <motion.div
+            className="absolute inset-y-0 w-10 pointer-events-none"
+            style={{ background: `linear-gradient(90deg, transparent, ${levelTier.border}55, transparent)` }}
+            initial={{ left: '-10%' }}
+            animate={{ left: '110%' }}
+            transition={{ duration: 0.65, ease: 'easeOut' }}
+          />
+        </motion.div>
+      )}
+
       {celebrating && (
         <>
           <CoinBurst count={7} />
