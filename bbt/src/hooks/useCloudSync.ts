@@ -4,7 +4,7 @@ import { auth } from '../firebase/config';
 import { SaveService, GameSave, LeaderboardEntry } from '../services/SaveService';
 import { getEmpireTotalInvested } from '../utils/districtProgress';
 import { getPendingReferralUid, clearPendingReferral } from '../utils/referral';
-import { progressionConfig } from '../config/progressionConfig';
+import { progressionConfig, CURRENT_SAVE_VERSION } from '../config/progressionConfig';
 import { applyContestPoints, todayDateString } from '../utils/weeklyContest';
 
 interface UseCloudSyncParams {
@@ -55,6 +55,7 @@ export function useCloudSync(params: UseCloudSyncParams) {
   latestSaveDataRef.current = {
     businessesByDistrict, stats, avatarEmoji, playerName, currentDistrictId,
     unlockedDistricts: unlockedDistrictsMap, rewardedDistricts: rewardedDistrictsMap, savedAt: Date.now(),
+    saveVersion: CURRENT_SAVE_VERSION,
   };
 
   const [realLeaderboard, setRealLeaderboard] = useState<Array<LeaderboardEntry & { uid: string }>>([]);
@@ -141,7 +142,7 @@ export function useCloudSync(params: UseCloudSyncParams) {
         // progress, since there was none to lose in this specific case.
         const cloudSave = await SaveService.cloudLoad(uid);
         if (cancelled) return;
-        if (cloudSave) {
+        if (cloudSave && cloudSave.saveVersion === CURRENT_SAVE_VERSION) {
           setBusinessesByDistrict(cloudSave.businessesByDistrict);
           setStats(cloudSave.stats);
           setAvatarEmoji(cloudSave.avatarEmoji);
@@ -195,7 +196,7 @@ export function useCloudSync(params: UseCloudSyncParams) {
         // if it's genuinely at least as recent as what's in the cloud.
         const cloudSave = await SaveService.cloudLoad(uid);
         if (cancelled) return;
-        if (cloudSave) {
+        if (cloudSave && cloudSave.saveVersion === CURRENT_SAVE_VERSION) {
           const localSavedAt = Number(localStorage.getItem('basti_local_saved_at') ?? 0);
           if (cloudSave.savedAt > localSavedAt) {
             setBusinessesByDistrict(cloudSave.businessesByDistrict);

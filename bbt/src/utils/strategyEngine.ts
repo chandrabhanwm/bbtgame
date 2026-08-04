@@ -48,6 +48,20 @@ export function getActiveSynergiesFor(districtId: string, businessId: string, ow
   return rules.filter(r => r.targetId === businessId && r.requiresIds.every(id => ownedIds.has(id)));
 }
 
+/** Every synergy this business is CURRENTLY, ACTIVELY granting to OTHER
+ *  businesses right now — the reverse direction of getActiveSynergiesFor.
+ *  A "hub" business (e.g. one that only ever appears in other synergies'
+ *  requiresIds, never as a target itself) would otherwise show nothing
+ *  at all in a detail view that only checks incoming bonuses, even
+ *  though it's the entire reason those other businesses are earning
+ *  extra — a hidden synergy system teaches a player nothing, and this
+ *  is exactly the direction that was previously invisible. */
+export function getSynergiesGrantedBy(districtId: string, businessId: string, ownedIds: Set<string>): SynergyRule[] {
+  if (!ownedIds.has(businessId)) return []; // not owned — grants nothing yet
+  const rules = getSynergyRules(districtId);
+  return rules.filter(r => r.requiresIds.includes(businessId) && r.requiresIds.every(id => ownedIds.has(id)));
+}
+
 /** Every synergy this business would newly activate FOR OTHER BUSINESSES
  *  if it were owned right now (used for the "buying this unlocks N
  *  bonuses elsewhere" preview — critical per the UI requirement that a
@@ -64,13 +78,19 @@ export function getSynergiesUnlockedByOwning(districtId: string, businessId: str
   });
 }
 
-/** The final, synergy-adjusted profitPerMin for one business, given its
- *  current level and which businesses in the district are owned. This is
- *  always a DERIVED value — never stored statically — since buying a
- *  different business in the district can change this number without
- *  this business itself changing level at all. */
+/** The final, synergy-adjusted profitPerMin for one business. For an
+ *  OWNED business (level >= 1), this is its actual current income. For
+ *  an UNOWNED business (level 0), this is a genuine PREVIEW of what it
+ *  would earn at Level 1 if bought right now, with whatever synergies
+ *  are already active applying to that preview too — this is what
+ *  actually makes the "Buy" card's displayed income accurate rather
+ *  than silently zero or a stale, pre-purchase snapshot. Always a
+ *  derived value — never stored statically — since buying a different
+ *  business in the district can change this number without this
+ *  business itself changing level at all. */
 export function computeSynergyAdjustedProfit(districtId: string, businessId: string, level: number, ownedIds: Set<string>): number {
-  const base = getBaseIncomeAtLevel(districtId, businessId, level);
+  const previewLevel = level <= 0 ? 1 : level;
+  const base = getBaseIncomeAtLevel(districtId, businessId, previewLevel);
   if (base === 0) return 0;
   const activeSynergies = getActiveSynergiesFor(districtId, businessId, ownedIds);
   const totalBonus = activeSynergies.reduce((sum, s) => sum + s.bonusPercent, 0);

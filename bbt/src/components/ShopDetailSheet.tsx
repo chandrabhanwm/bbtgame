@@ -7,7 +7,7 @@ import { BusinessPhoto, BusinessIcon } from './BusinessPhoto';
 import { CoinIcon } from './CoinIcon';
 import { CoinBurst } from './FX';
 import { calculateTieredProfit } from '../utils/profitCurve';
-import { districtUsesStrategyLayer, getActiveSynergiesFor, getSynergiesUnlockedByOwning, getNextLevelCost } from '../utils/strategyEngine';
+import { districtUsesStrategyLayer, getActiveSynergiesFor, getSynergiesUnlockedByOwning, getSynergiesGrantedBy, getNextLevelCost, getBaseIncomeAtLevel } from '../utils/strategyEngine';
 
 interface ShopDetailSheetProps {
   business: Business | null;
@@ -49,6 +49,8 @@ export const ShopDetailSheet: React.FC<ShopDetailSheetProps> = ({ business, inde
   const ownedIds = new Set((districtBusinesses ?? []).filter(b => b.level > 0).map(b => b.id));
   const activeSynergies = usesStrategyLayer && districtId ? getActiveSynergiesFor(districtId, business.id, ownedIds) : [];
   const potentialSynergies = usesStrategyLayer && districtId && isLocked ? getSynergiesUnlockedByOwning(districtId, business.id, ownedIds) : [];
+  const grantedSynergies = usesStrategyLayer && districtId ? getSynergiesGrantedBy(districtId, business.id, ownedIds) : [];
+  const nameFor = (id: string) => (districtBusinesses ?? []).find(b => b.id === id)?.name ?? id;
   const isMaxLevel = usesStrategyLayer && districtId ? getNextLevelCost(districtId, business.id, business.level) === null : false;
   const isAffordable = readOnly ? false : (isMaxLevel ? false : cash >= business.cost);
 
@@ -158,10 +160,38 @@ export const ShopDetailSheet: React.FC<ShopDetailSheetProps> = ({ business, inde
                   <CoinIcon className="w-4 h-4" premium />
                   {readOnly
                     ? business.cost.toLocaleString('en-IN')
-                    : (isLocked ? business.baseProfitPerMin : business.profitPerMin).toLocaleString('en-IN') + '/min'}
+                    : business.profitPerMin.toLocaleString('en-IN') + '/min'}
                 </span>
               </div>
             </div>
+
+            {!readOnly && grantedSynergies.length > 0 && (
+              <div className="mt-2 rounded-xl px-3 py-2" style={{ backgroundColor: 'var(--color-premium-elevated)', border: '1.5px solid var(--color-premium-green-500)' }}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Sparkles size={12} color="var(--color-premium-green-500)" />
+                  <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--color-premium-green-500)' }}>
+                    {(() => {
+                      const targets = new Set(grantedSynergies.map(s => s.targetId));
+                      return `Boosting ${targets.size} business${targets.size > 1 ? 'es' : ''} right now`;
+                    })()}
+                  </span>
+                </div>
+                {(() => {
+                  // Multiple synergies can target the same business (e.g. two
+                  // separate bonuses both landing on the same shop) — grouped
+                  // here into one line with a combined percentage, since two
+                  // lines repeating the same business name read as a bug at
+                  // a glance even though the underlying numbers are correct.
+                  const byTarget = new Map<string, number>();
+                  grantedSynergies.forEach(s => byTarget.set(s.targetId, (byTarget.get(s.targetId) ?? 0) + s.bonusPercent));
+                  return Array.from(byTarget.entries()).map(([targetId, totalBonus]) => (
+                    <div key={targetId} className="text-[10px]" style={{ color: 'var(--color-premium-text-secondary)' }}>
+                      {nameFor(targetId)} (+{Math.round(totalBonus * 100)}%)
+                    </div>
+                  ));
+                })()}
+              </div>
+            )}
 
             {!readOnly && activeSynergies.length > 0 && (
               <div className="mt-2 rounded-xl px-3 py-2" style={{ backgroundColor: 'var(--color-premium-elevated)', border: '1.5px solid var(--color-premium-gold-400)' }}>
@@ -204,7 +234,7 @@ export const ShopDetailSheet: React.FC<ShopDetailSheetProps> = ({ business, inde
                   <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--color-premium-text-secondary)' }}>Base Income</span>
                   <span className="flex items-center gap-1 font-bold text-sm" style={{ color: 'var(--color-premium-green-500)' }}>
                     <CoinIcon className="w-4 h-4" premium />
-                    {business.baseProfitPerMin.toLocaleString('en-IN')}/min
+                    {business.profitPerMin.toLocaleString('en-IN')}/min
                   </span>
                 </div>
               </div>
@@ -219,7 +249,10 @@ export const ShopDetailSheet: React.FC<ShopDetailSheetProps> = ({ business, inde
                   <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--color-premium-text-secondary)' }}>Max Potential Income</span>
                   <span className="flex items-center gap-1 font-bold text-sm" style={{ color: 'var(--color-premium-gold-400)' }}>
                     <CoinIcon className="w-4 h-4" premium />
-                    {calculateTieredProfit(business.baseProfitPerMin, business.maxLevel).toLocaleString('en-IN')}/min
+                    {(usesStrategyLayer && districtId
+                      ? getBaseIncomeAtLevel(districtId, business.id, 6)
+                      : calculateTieredProfit(business.baseProfitPerMin, business.maxLevel!)
+                    ).toLocaleString('en-IN')}/min
                   </span>
                 </div>
               </div>

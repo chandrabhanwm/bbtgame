@@ -142,3 +142,17 @@ export const progressionConfig = {
    *  system). */
   dailyReferralCap: 10,
 };
+
+/** A deliberate, one-time economy reset — every business's costs and
+ *  income were fundamentally re-architected (fixed 6-level tables with
+ *  cross-business synergies, replacing the old uncapped, continuous
+ *  growth formula) and rescaled by 1.9x. A save (local device storage
+ *  OR cloud) written under a version below this number is treated as
+ *  fundamentally incompatible — its levels and prices don't correspond
+ *  to anything in the new system — and is ignored entirely rather than
+ *  partially restored, exactly like "no save exists at all" for a
+ *  genuinely new device. This forces a full, automatic reset across
+ *  every existing player without needing to reach each device or
+ *  account by hand. Bump this again for any future change severe enough
+ *  to warrant the same treatment.*/
+export const CURRENT_SAVE_VERSION = 2;

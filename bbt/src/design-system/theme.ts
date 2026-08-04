@@ -166,6 +166,12 @@ export const categoryBadgeTheme = {
   'HEALTHCARE': { background: colorTokens.badge.teal, text: colorTokens.text.primary },
   'EVENTS': { background: colorTokens.badge.purple, text: colorTokens.text.primary },
   'GENERAL': { background: colorTokens.badge.gray, text: colorTokens.text.primary },
+  'RETAIL': { background: colorTokens.badge.blue, text: colorTokens.text.primary },
+  'FINANCE': { background: colorTokens.badge.teal, text: colorTokens.text.primary },
+  'TRANSPORT': { background: colorTokens.badge.gray, text: colorTokens.text.primary },
+  'REAL ESTATE': { background: colorTokens.badge.purple, text: colorTokens.text.primary },
+  'INDUSTRIAL': { background: colorTokens.badge.orange, text: colorTokens.text.primary },
+  'LEGAL SERVICES': { background: colorTokens.badge.red, text: colorTokens.text.primary },
 } as const;
 
 // ---------------------------------------------------------------------

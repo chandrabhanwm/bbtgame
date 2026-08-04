@@ -213,14 +213,18 @@
   }
 
   /* Pressable/embossed button — a raised, thick-feeling CTA style, built
-     from the same three teal stops already in use everywhere else
+     from the same three gold stops already in use everywhere else
      (gold-100 as the light face, gold-400 as the base, gold-600 as the
      "lip" underneath that gives it depth), not new hues. The lip itself
      is a solid offset shadow (0 4px 0 ...), the classic technique mobile
      game buttons use to read as physically thick rather than a flat
      filled pill. :active compresses the lip and nudges the button down,
      so it visually depresses on tap/press, not just scales like the
-     rest of the app's tap feedback. */
+     rest of the app's tap feedback. The business card's own CTA button
+     builds this same effect via inline styles instead, so its face/lip
+     colors can be derived from that business's own level color — this
+     class is the default teal/gold look for anywhere else that wants
+     the pressable style without per-level coloring. */
   .btn-premium-pressable {
     background: linear-gradient(180deg, var(--color-premium-gold-100) 0%, var(--color-premium-gold-400) 100%);
     color: var(--color-premium-text-inverse);

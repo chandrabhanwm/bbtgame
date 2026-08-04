@@ -31,6 +31,12 @@ export interface GameSave {
    *  for a future two-way sync that needs to compare "which save is
    *  newer." */
   savedAt: number;
+  /** Which economy/schema version this save was written under. A save
+   *  from before a version bump (or missing this field entirely, since
+   *  it didn't exist before this was added) is treated as fundamentally
+   *  incompatible rather than partially restored — see
+   *  CURRENT_SAVE_VERSION in App.tsx for the full reasoning. */
+  saveVersion?: number;
 }
 
 const STORAGE_KEY = 'basti_game_save_v1';

@@ -53,11 +53,11 @@ export function useAccountActions({
   // Reset progress option
   const handleResetProgress = () => {
     playClick();
-    if (confirm("Are you sure you want to rebuild your empire from scratch? This resets your cash to ₹50,000.")) {
+    if (confirm("Are you sure you want to rebuild your empire from scratch? This resets your cash to ₹25,000.")) {
       setBusinessesByDistrict(seedAllDistricts());
-      cashRef.current = 50000;
+      cashRef.current = 25000;
       setStats({
-        cash: 50000,
+        cash: 25000,
         profitPerMin: 0,
         // rank removed — replaced by a real, separately-fetched leaderboard rank
         level: 1,
@@ -115,10 +115,10 @@ export function useAccountActions({
 
     playLevelUp();
     setBusinessesByDistrict(seedAllDistricts());
-    cashRef.current = 50000;
+    cashRef.current = 25000;
     setStats((prev) => ({
       ...prev,
-      cash: 50000,
+      cash: 25000,
       profitPerMin: 0,
       poolCash: 0,
       lastPoolClaimAt: Date.now(),

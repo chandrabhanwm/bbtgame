@@ -1,6 +1,5 @@
 import { Business } from '../types';
 import { progressionConfig } from '../config/progressionConfig';
-import { calculateTieredProfit } from './profitCurve';
 import { districtUsesStrategyLayer, getStrategyLevelData } from './strategyEngine';
 
 /**
@@ -14,7 +13,7 @@ import { districtUsesStrategyLayer, getStrategyLevelData } from './strategyEngin
 export function getDistrictIncome(businesses: Business[]): number {
   return businesses.reduce((sum, b) => {
     if (b.level === 0) return sum;
-    return sum + calculateTieredProfit(b.baseProfitPerMin, b.level);
+    return sum + b.profitPerMin;
   }, 0);
 }
 

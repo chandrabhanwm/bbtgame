@@ -42,7 +42,7 @@ import { useSessionEnforcement } from './hooks/useSessionEnforcement';
 import { getCooldownRemainingSeconds, CLAIM_COOLDOWN_MS, formatCooldownClock } from './utils/cooldown';
 import { applyContestPoints, todayDateString, localDateStringOf } from './utils/weeklyContest';
 import { CountdownClock } from './components/CountdownClock';
-import { progressionConfig } from './config/progressionConfig';
+import { progressionConfig, CURRENT_SAVE_VERSION } from './config/progressionConfig';
 import { playClick, playLevelUp, playUnlock } from './utils/audio';
 import { formatCash } from './utils/formatCash';
 
@@ -122,6 +122,20 @@ function AppInner({ currentUid }: { currentUid: string }) {
   // fresh-player-or-cloud-restore path used for a genuinely new device.
   const localSaveBelongsToThisUser = localStorage.getItem('basti_owner_uid') === currentUid;
 
+  // A deliberate, one-time economy reset — every business's costs and
+  // income were fundamentally re-architected (fixed 6-level tables with
+  // cross-business synergies, replacing the old uncapped, continuous
+  // growth formula) and rescaled by 1.9x. A save from before this
+  // version bump has levels and prices that don't correspond to
+  // anything in the new system at all, so it's treated exactly like "no
+  // local save exists" — the same safe fresh-start path already used
+  // for a genuinely new device. Bumping CURRENT_SAVE_VERSION forces a
+  // full reset for every existing local save automatically, without
+  // needing to reach every individual device by hand — the version
+  // simply won't match, so old data is ignored rather than restored.
+  const localSaveVersionCurrent = localStorage.getItem('basti_save_version') === String(CURRENT_SAVE_VERSION);
+  const shouldTrustLocalSave = localSaveBelongsToThisUser && localSaveVersionCurrent;
+
   // STATE DEFINITIONS
   const [businessesByDistrict, setBusinessesByDistrict] = useState<Record<string, Business[]>>(() => {
     const seeded = seedAllDistricts();
@@ -143,7 +157,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
         return { ...saved, name: fresh.name, emoji: fresh.emoji, gradient: fresh.gradient, description: fresh.description, themeColor: fresh.themeColor };
       });
 
-    const saved = localSaveBelongsToThisUser ? localStorage.getItem('basti_businesses_by_district') : null;
+    const saved = shouldTrustLocalSave ? localStorage.getItem('basti_businesses_by_district') : null;
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -160,7 +174,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
     }
     // Migrate a pre-District-Engine save (single Badeban array) if present
     // — only for this same account, same reasoning as above.
-    const legacy = localSaveBelongsToThisUser ? localStorage.getItem('basti_businesses') : null;
+    const legacy = shouldTrustLocalSave ? localStorage.getItem('basti_businesses') : null;
     if (legacy) {
       try {
         const parsedLegacy = JSON.parse(legacy);
@@ -189,11 +203,11 @@ function AppInner({ currentUid }: { currentUid: string }) {
   // fresh device/browser with no local save at all. This is what gates
   // cloud restore below: if this is false, restore never runs, so
   // there's zero risk of a cloud save overwriting real local progress.
-  const hadNoLocalSaveAtBootRef = useRef(!localSaveBelongsToThisUser);
+  const hadNoLocalSaveAtBootRef = useRef(!shouldTrustLocalSave);
 
   const [stats, setStats] = useState<PlayerStats>(() => {
     const freshDefaults: PlayerStats = {
-      cash: 50000, // "Moment Zero" — enough for exactly one real purchase, not a pre-filled empire
+      cash: 25000, // "Moment Zero" — enough for a couple of small early purchases, not a pre-filled empire. Scaled down alongside the rest of the economy's 1.9x reduction — ₹50,000 against the new, cheaper costs was quietly buying 3 businesses immediately instead of the originally-intended "about one."
       profitPerMin: 0, // Nothing owned yet — Tea Stall is no longer pre-owned, per Moment Zero
       // rank removed — replaced by a real, separately-fetched leaderboard rank
       level: 1,
@@ -228,7 +242,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
       dailyReferralClaimsDate: '',
     };
 
-    const saved = localSaveBelongsToThisUser ? localStorage.getItem('basti_stats') : null;
+    const saved = shouldTrustLocalSave ? localStorage.getItem('basti_stats') : null;
     if (saved) {
       // Wrapped in try/catch, matching the same safe-fallback pattern
       // already used for the other three localStorage reads (unlocked
@@ -338,11 +352,11 @@ function AppInner({ currentUid }: { currentUid: string }) {
   }, [stats.cash]);
 
   const [avatarEmoji, setAvatarEmoji] = useState(() => {
-    return (localSaveBelongsToThisUser && localStorage.getItem('basti_avatar')) || '😎';
+    return (shouldTrustLocalSave && localStorage.getItem('basti_avatar')) || '😎';
   });
 
   const [playerName, setPlayerName] = useState(() => {
-    return (localSaveBelongsToThisUser && localStorage.getItem('basti_player_name')) || 'SmartTycoon';
+    return (shouldTrustLocalSave && localStorage.getItem('basti_player_name')) || 'SmartTycoon';
   });
 
   const [activeTab, setActiveTab] = useState<'home' | 'city' | 'leaderboard' | 'profile'>('home');
@@ -515,21 +529,25 @@ function AppInner({ currentUid }: { currentUid: string }) {
   // Auto-save local storage when state changes
   useEffect(() => {
     localStorage.setItem('basti_owner_uid', currentUid);
+    localStorage.setItem('basti_save_version', String(CURRENT_SAVE_VERSION));
     localStorage.setItem('basti_businesses_by_district', JSON.stringify(businessesByDistrict));
   }, [businessesByDistrict, currentUid]);
 
   useEffect(() => {
     localStorage.setItem('basti_owner_uid', currentUid);
+    localStorage.setItem('basti_save_version', String(CURRENT_SAVE_VERSION));
     localStorage.setItem('basti_stats', JSON.stringify(stats));
   }, [stats, currentUid]);
 
   useEffect(() => {
     localStorage.setItem('basti_owner_uid', currentUid);
+    localStorage.setItem('basti_save_version', String(CURRENT_SAVE_VERSION));
     localStorage.setItem('basti_avatar', avatarEmoji);
   }, [avatarEmoji, currentUid]);
 
   useEffect(() => {
     localStorage.setItem('basti_owner_uid', currentUid);
+    localStorage.setItem('basti_save_version', String(CURRENT_SAVE_VERSION));
     localStorage.setItem('basti_player_name', playerName);
   }, [playerName, currentUid]);
 
@@ -587,7 +605,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
       icon: '🎉',
       title: 'Welcome to CoralBay!',
       message: 'Your business empire starts now.',
-      bonusText: '+₹50,000 signup bonus',
+      bonusText: '+₹25,000 signup bonus',
       color: 'gold',
     });
     setShowConfetti(true);
