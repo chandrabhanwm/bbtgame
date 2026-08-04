@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Lock, ShoppingCart, ArrowUpCircle, X, Sparkles } from 'lucide-react';
 import { Business } from '../types';
 import { playClick, playUpgrade, playUnlock, playError } from '../utils/audio';
-import { MiniShopSVG } from './BusinessCard';
+import { BusinessPhoto, BusinessIcon } from './BusinessPhoto';
 import { CoinIcon } from './CoinIcon';
 import { CoinBurst } from './FX';
 import { calculateTieredProfit } from '../utils/profitCurve';
@@ -109,31 +109,38 @@ export const ShopDetailSheet: React.FC<ShopDetailSheetProps> = ({ business, inde
               <X size={16} color="var(--color-premium-text-secondary)" strokeWidth={3} />
             </button>
 
-            <div className="flex items-center gap-4">
+            {/* Hero photo — same auto-lookup + gradient/icon fallback as
+                the grid cards, so a business shows a real photo once one
+                exists at public/assets/business-photos/{id}.jpg (or
+                .jpeg/.png/.webp), and the same nice fallback otherwise. */}
+            <div className="relative w-full h-[150px] rounded-2xl overflow-hidden mb-3">
+              <BusinessPhoto
+                business={business}
+                fallback={
+                  <div
+                    className={`w-full h-full flex items-center justify-center ${isLocked ? 'opacity-40 grayscale' : ''}`}
+                    style={{ background: `linear-gradient(135deg, ${business.themeColor}66, var(--color-premium-elevated))` }}
+                  >
+                    {showBurst && <CoinBurst />}
+                    <BusinessIcon business={business} className="w-20 h-20 object-contain" emojiClassName="text-6xl" />
+                  </div>
+                }
+              />
               <div
-                className="relative w-20 h-20 flex-shrink-0 rounded-2xl flex items-center justify-center overflow-visible"
-                style={{ backgroundColor: 'var(--color-premium-elevated)', border: '1.5px solid var(--color-premium-border)' }}
+                className="absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs"
+                style={{ backgroundColor: 'var(--color-premium-gold-400)', border: '1.5px solid var(--color-premium-bg)', color: 'var(--color-premium-text-inverse)' }}
               >
-                {showBurst && <CoinBurst />}
-                <div className={`w-16 h-16 ${isLocked ? 'opacity-40 grayscale' : ''}`}>
-                  <MiniShopSVG business={business} index={index} />
-                </div>
-                <div
-                  className="absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs"
-                  style={{ backgroundColor: 'var(--color-premium-gold-400)', border: '1.5px solid var(--color-premium-bg)', color: 'var(--color-premium-text-inverse)' }}
-                >
-                  {index + 1}
-                </div>
+                {index + 1}
               </div>
+            </div>
 
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-base leading-tight" style={{ color: 'var(--color-premium-text)' }}>
-                  {business.name}
-                </h3>
-                <p className="text-[11px] font-medium leading-snug mt-1" style={{ color: 'var(--color-premium-text-secondary)' }}>
-                  {business.description}
-                </p>
-              </div>
+            <div>
+              <h3 className="font-bold text-base leading-tight" style={{ color: 'var(--color-premium-text)' }}>
+                {business.name}
+              </h3>
+              <p className="text-[11px] font-medium leading-snug mt-1" style={{ color: 'var(--color-premium-text-secondary)' }}>
+                {business.description}
+              </p>
             </div>
 
             <div className="flex items-center gap-3 mt-4">

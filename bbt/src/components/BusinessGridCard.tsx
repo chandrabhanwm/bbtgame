@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Lock } from 'lucide-react';
 import { Business } from '../types';
-import { getBusinessCategory } from '../data/businessCategoryPresentation';
 import { CoinIcon } from './CoinIcon';
+import { BusinessPhoto, BusinessIcon } from './BusinessPhoto';
 import { CoinBurst } from './FX';
 import { playTap } from '../utils/audio';
 
@@ -42,24 +42,6 @@ interface BusinessGridCardProps {
  * Falls back to the flat emoji gracefully if a given business id doesn't
  * have a matching downloaded icon (e.g. a future business added later).
  */
-const BusinessIcon: React.FC<{ business: Business }> = ({ business }) => {
-  const [failed, setFailed] = useState(false);
-
-  if (failed) {
-    return <span className="text-4xl" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))' }}>{business.emoji}</span>;
-  }
-
-  return (
-    <img
-      src={`/assets/business-icons/${business.id}.png`}
-      alt={business.name}
-      className="w-11 h-11 object-contain"
-      style={{ filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.45))' }}
-      onError={() => setFailed(true)}
-    />
-  );
-};
-
 /** Level-tier colors for a business's card — L1 (just bought, not yet
  *  upgraded) deliberately gets no special treatment, since it isn't an
  *  achievement yet. L2 through L6 each get their own distinct color, so a
@@ -76,7 +58,6 @@ function getLevelTierColor(level: number): { border: string; glow: string; tint:
 }
 
 export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, index, imageUrl, onSelect, justUpdated = false, cash, contestPointsCelebrating = false }) => {
-  const category = getBusinessCategory(business.id);
   const isOwned = business.level > 0;
   const isAffordable = cash >= business.cost;
 
@@ -101,17 +82,9 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
       animate={{ scale: celebrating ? [1, 1.03, 1] : 1 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
       onClick={() => { playTap(); onSelect(business.id); }}
-      className="glossy-3d relative flex flex-col rounded-[14px] text-left cursor-pointer"
+      className="glossy-3d relative flex flex-col rounded-[22px] text-left cursor-pointer overflow-hidden"
       style={{
-        minHeight: '156px',
-        // Directly overrides glossy-3d's own `border` property (a fixed
-        // teal, defined in CSS) — a box-shadow addition alone left that
-        // teal border still visibly winning underneath it, which is
-        // exactly why the level-color change read as barely visible
-        // against the much more obvious "LEVEL X" badge color change.
-        // The tier border stays visible even during the celebration
-        // glow below — the two are independent CSS properties (border
-        // vs box-shadow) and layer together rather than competing.
+        minHeight: '340px',
         border: levelTier ? `1.5px solid ${levelTier.border}` : undefined,
         boxShadow: celebrating
           ? '0 0 0 2px var(--color-premium-gold-400), 0 0 16px rgba(212, 167, 44, 0.45)'
@@ -137,7 +110,7 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
       {levelTier && (
         <motion.div
           key={business.level}
-          className="absolute inset-0 rounded-[14px] pointer-events-none overflow-hidden"
+          className="absolute inset-0 rounded-[22px] pointer-events-none overflow-hidden"
           style={{ backgroundColor: levelTier.tint, zIndex: 1 }}
           initial={{ clipPath: 'inset(0 100% 0 0)' }}
           animate={{ clipPath: 'inset(0 0% 0 0)' }}
@@ -194,98 +167,75 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
           🏆 +10 pts
         </motion.div>
       )}
-      {/* Image region — clipped to rounded top corners locally, not via the
-          outer card's overflow, so the outer container can never clip
-          content below it regardless of any height-calculation quirk.
-          Shrunk further per request — icon inside is smaller to match. */}
-      <div className="relative w-full h-[64px] rounded-t-[14px] overflow-hidden flex-shrink-0">
-        {imageUrl ? (
-          <img src={imageUrl} alt={business.name} className="w-full h-full object-cover" />
-        ) : (
-          <div
-            className="w-full h-full flex items-center justify-center"
-            style={{ background: `linear-gradient(135deg, ${business.themeColor}44, var(--color-premium-surface))` }}
-          >
-            <BusinessIcon business={business} />
-          </div>
-        )}
-
-        {/* Buy/Upgrade badge, top-left — shows the actual action this
-            card leads to (not the category name, which didn't tell a
-            player anything actionable), colored per-category to match
-            the price badge below it. Glows when currently affordable. */}
-        <motion.span
-          className="absolute top-1.5 left-1.5 px-2.5 py-1 rounded-[6px] text-[9px] font-bold uppercase tracking-wide"
-          style={{ backgroundColor: category.badgeBg, color: category.badgeText }}
-          animate={isAffordable ? { boxShadow: ['0 0 0px rgba(212,167,44,0)', '0 0 10px rgba(212,167,44,0.85)', '0 0 0px rgba(212,167,44,0)'] } : {}}
-          transition={{ duration: 1.6, repeat: isAffordable ? Infinity : 0, ease: 'easeInOut' }}
-        >
-          {isOwned ? 'Upgrade' : 'Buy'}
-        </motion.span>
+      {/* Full-bleed photo — fills the entire card, not just a header strip.
+          Everything else (title, description, badges, button) overlays on
+          top of it via the gradient below, exactly like the reference. */}
+      <div className="absolute inset-0">
+        <BusinessPhoto
+          business={business}
+          imageUrl={imageUrl}
+          fallback={
+            <div
+              className="w-full h-full flex items-center justify-center"
+              style={{ background: `linear-gradient(135deg, ${business.themeColor}66, var(--color-premium-surface))` }}
+            >
+              <BusinessIcon business={business} />
+            </div>
+          }
+        />
       </div>
 
-      {/* Content region — flex-shrink-0 so this block, and everything in
-          it, holds its real size no matter what height the image region
-          or an ancestor grid row ends up computing. Without this, flex's
-          default shrink behavior can compress a child below its content
-          size instead of overflowing visibly — which reads as squished,
-          illegible text rather than a clean line break. Padding/gap
-          tightened to make the card read as more compact — font size and
-          the name's line reservation are otherwise untouched, since those
-          were the actual fix for real cross-browser bugs, not just sizing. */}
-      <div className="px-2 py-1 flex flex-col gap-[3px] flex-shrink-0">
-        {/* Business name — reserves a genuine 3-line box, not 2. A real
-            screenshot showed "Chaudhary Marriage Hall" (24 characters, the
-            longest name in the current data) rendering with its price/
-            income missing entirely — the actual cause: at this card width,
-            a name that long needs 3 lines, but the box only reserved 2,
-            so the card's own computed height fell short of what its real
-            content needed. Reserving 3 lines here, and sizing the card's
-            min-height to match, fixes the root cause rather than the
-            symptom. No ellipsis, no truncation, no hard line-cap — still
-            wraps naturally either way. */}
-        <span
-          className="font-semibold text-white flex-shrink-0"
-          style={{
-            fontSize: '13px',
-            lineHeight: '1.2',
-            minHeight: '47px',
-            display: 'block',
-          }}
-        >
-          {business.name}
-        </span>
+      {/* Bottom gradient — fades from transparent to near-black so the
+          overlaid text stays readable against any photo/color underneath,
+          matching the reference's card treatment. */}
+      <div
+        className="absolute inset-x-0 bottom-0 h-[72%] pointer-events-none"
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 35%, rgba(0,0,0,0.25) 70%, rgba(0,0,0,0) 100%)' }}
+      />
 
-        {isOwned ? (
+      {/* Content — pinned to the bottom of the card, sitting on the
+          gradient above. */}
+      <div className="relative z-10 mt-auto flex flex-col gap-2 px-3.5 pb-3.5 pt-2">
+        <div>
+          <h3 className="font-bold text-white text-[15px] leading-tight" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+            {business.name}
+          </h3>
+          <p className="text-white/80 text-[11px] leading-snug mt-1 line-clamp-2">
+            {business.description}
+          </p>
+        </div>
+
+        {/* Two badge pills, matching the reference's rating/stay pills —
+            here showing level-or-buy status and income rate instead,
+            since those are this game's equivalent "at a glance" facts. */}
+        <div className="flex items-center gap-1.5 flex-wrap">
           <motion.span
-            animate={{ scale: celebrating ? [1, 1.15, 1] : 1 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="w-fit px-2 py-[2px] rounded-[5px] text-[9px] font-bold text-white flex-shrink-0"
-            style={{ backgroundColor: levelTier ? levelTier.border : 'var(--color-premium-badge-green)', lineHeight: '1.6' }}
+            className="px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1"
+            style={{ backgroundColor: 'rgba(255,255,255,0.16)', color: '#ffffff', backdropFilter: 'blur(4px)' }}
+            animate={isAffordable && !isOwned ? { boxShadow: ['0 0 0px rgba(212,167,44,0)', '0 0 10px rgba(212,167,44,0.85)', '0 0 0px rgba(212,167,44,0)'] } : {}}
+            transition={{ duration: 1.6, repeat: isAffordable && !isOwned ? Infinity : 0, ease: 'easeInOut' }}
           >
-            LEVEL {business.level}
+            {isOwned ? `⭐ LEVEL ${business.level}` : '🔓 Buy'}
           </motion.span>
-        ) : (
           <span
-            className="w-fit px-2 py-[2px] rounded-[5px] text-[9px] font-bold flex items-center gap-1 flex-shrink-0"
-            style={{ backgroundColor: category.badgeBg, color: category.badgeText, lineHeight: '1.6' }}
+            className="px-2.5 py-1 rounded-full text-[10px] font-semibold flex items-center gap-1"
+            style={{ backgroundColor: 'rgba(255,255,255,0.16)', color: '#ffffff', backdropFilter: 'blur(4px)' }}
           >
-            ₹{formatShort(business.cost)}
+            <CoinIcon className="w-2.5 h-2.5" premium />
+            ₹{Math.round(isOwned ? business.profitPerMin : business.baseProfitPerMin)}/min
           </span>
-        )}
+        </div>
 
-        {/* Income row — restored per reference; money is always green,
-            per the frozen design system, regardless of the price badge's
-            rotated color above it. Flashes to a brighter green briefly
-            on purchase/upgrade, then settles back. */}
-        <motion.span
-          animate={{ color: celebrating ? ['var(--color-premium-green-500)', 'var(--color-premium-gold-100)', 'var(--color-premium-green-500)'] : 'var(--color-premium-green-500)' }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="flex items-center gap-1 text-[10px] font-semibold flex-shrink-0"
+        {/* CTA — visually a button, but this whole card is already a
+            <button> (onSelect above), so this stays a <div> to avoid
+            nesting interactive elements; tapping anywhere on the card,
+            including here, opens the same detail sheet. */}
+        <div
+          className="w-full mt-0.5 py-2.5 rounded-full text-center font-bold text-[12.5px]"
+          style={{ backgroundColor: '#ffffff', color: '#1a1a1a' }}
         >
-          <CoinIcon className="w-3 h-3" premium />
-          ₹{Math.round(isOwned ? business.profitPerMin : business.baseProfitPerMin)} /min
-        </motion.span>
+          {isOwned ? `Upgrade — ₹${formatShort(business.cost)}` : `Buy — ₹${formatShort(business.cost)}`}
+        </div>
       </div>
     </motion.button>
   );

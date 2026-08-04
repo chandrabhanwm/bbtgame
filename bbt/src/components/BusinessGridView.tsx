@@ -29,7 +29,7 @@ interface BusinessGridViewProps {
  */
 export const BusinessGridView: React.FC<BusinessGridViewProps> = ({ businesses, onSelectShop, imageUrls, readOnly = false, justUpdatedBusinessId = null, cash, contestPointsCelebrationId = null }) => {
   return (
-    <div className="grid grid-cols-4 gap-2.5 items-start auto-rows-min pb-2">
+    <div className="grid grid-cols-2 gap-3 items-start auto-rows-min pb-2">
       {businesses.map((business, index) => (
         <BusinessGridCard
           key={business.id}
