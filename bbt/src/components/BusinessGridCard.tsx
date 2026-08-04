@@ -6,6 +6,7 @@ import { CoinIcon } from './CoinIcon';
 import { BusinessPhoto, BusinessIcon } from './BusinessPhoto';
 import { CoinBurst } from './FX';
 import { playTap } from '../utils/audio';
+import { getBusinessCategory } from '../data/businessCategoryPresentation';
 
 interface BusinessGridCardProps {
   business: Business;
@@ -42,13 +43,16 @@ interface BusinessGridCardProps {
  * Falls back to the flat emoji gracefully if a given business id doesn't
  * have a matching downloaded icon (e.g. a future business added later).
  */
-/** Level-tier colors for a business's card — L1 (just bought, not yet
- *  upgraded) deliberately gets no special treatment, since it isn't an
- *  achievement yet. L2 through L6 each get their own distinct color, so a
- *  player can tell how invested a business is at a glance across an
- *  entire grid, without reading every level number individually. */
+/** Level-tier colors for a business's card — every level from L1 onward
+ *  gets its own distinct color now (previously L1 had none), so a
+ *  player can tell a business's exact level at a glance from color
+ *  alone, before even reading the "LEVEL X" badge. Levels 7+ reuse the
+ *  L6 diamond/purple tier rather than inventing more colors, since the
+ *  strategy-layer economy caps every business at exactly level 6 —
+ *  only legacy (pre-strategy-layer) businesses can exceed it. */
 function getLevelTierColor(level: number): { border: string; glow: string; tint: string } | null {
   switch (level) {
+    case 1: return { border: '#C87F4A', glow: 'rgba(200,127,74,0.35)', tint: 'rgba(200,127,74,0.10)' }; // copper
     case 2: return { border: '#CD7F32', glow: 'rgba(205,127,50,0.35)', tint: 'rgba(205,127,50,0.10)' }; // bronze
     case 3: return { border: '#C0C0C0', glow: 'rgba(192,192,192,0.35)', tint: 'rgba(192,192,192,0.10)' }; // silver
     case 4: return { border: '#FFD700', glow: 'rgba(255,215,0,0.40)', tint: 'rgba(255,215,0,0.12)' }; // gold
@@ -57,9 +61,51 @@ function getLevelTierColor(level: number): { border: string; glow: string; tint:
   }
 }
 
+/** Converts a "#rrggbb" hex color to an "rgba(r,g,b,a)" string, used to
+ *  build translucent badge/wash fills from the same hex the border and
+ *  glow already use, so every level-colored surface on the card stays
+ *  in the same exact hue rather than drifting between hand-picked
+ *  rgba() values. */
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Blends a "#rrggbb" hex toward white (amount 0-1) — used to build the
+ *  lighter "face" of the pressable button's gradient from the same
+ *  level color used everywhere else on the card, instead of a second
+ *  hand-picked color per level. */
+function lightenHex(hex: string, amount: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * amount);
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
+/** Blends a "#rrggbb" hex toward black (amount 0-1) — used to build the
+ *  darker "lip" shadow underneath the pressable button, which is what
+ *  actually reads as the button's thickness/depth. */
+function darkenHex(hex: string, amount: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const mix = (c: number) => Math.round(c * (1 - amount));
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
+/** Title-cases a category label like "BAKERY" -> "Bakery" for use as the
+ *  card's subtitle line, matching the reference's plain-case subtitle
+ *  rather than shouting in caps the way the old category chip did. */
+function toTitleCase(s: string): string {
+  return s.toLowerCase().replace(/(^|\s|&\s)\w/g, (c) => c.toUpperCase());
+}
+
 export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, index, imageUrl, onSelect, justUpdated = false, cash, contestPointsCelebrating = false }) => {
   const isOwned = business.level > 0;
-  const isAffordable = cash >= business.cost;
+  const category = getBusinessCategory(business.id);
 
   // One-shot celebrate window — 180ms card pulse per spec, held a little
   // longer (700ms) so the slower badge/income/particle beats can finish
@@ -75,6 +121,10 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
   }, [justUpdated]);
 
   const levelTier = getLevelTierColor(business.level);
+  // The glossy image frame's accent color — the level's own color once
+  // owned, otherwise the app's default teal, so an unbought business
+  // doesn't show a color that hasn't been earned yet.
+  const imageAccent = levelTier?.border ?? '#2DBEC8';
 
   return (
     <motion.button
@@ -82,51 +132,26 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
       animate={{ scale: celebrating ? [1, 1.03, 1] : 1 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
       onClick={() => { playTap(); onSelect(business.id); }}
-      className="glossy-3d relative flex flex-col rounded-[22px] text-left cursor-pointer overflow-hidden"
+      className="relative flex flex-col rounded-[20px] text-left cursor-pointer p-3"
       style={{
-        minHeight: '340px',
-        border: levelTier ? `1.5px solid ${levelTier.border}` : undefined,
+        // Flat card, but tinted per level — a gradient that fades the
+        // level's own color in from the top-left corner into the normal
+        // dark surface, plus a level-colored border. Deliberately not the
+        // glossy embossed treatment (that stays scoped to the image/
+        // buttons only, per direction) — just a plain color wash, so the
+        // whole card visibly changes on every upgrade without becoming
+        // "glossy 3D" itself.
+        background: levelTier
+          ? `linear-gradient(165deg, ${hexToRgba(levelTier.border, 0.24)} 0%, var(--color-premium-surface) 65%)`
+          : 'var(--color-premium-surface)',
+        border: levelTier ? `1px solid ${hexToRgba(levelTier.border, 0.55)}` : '1px solid var(--color-premium-border)',
         boxShadow: celebrating
           ? '0 0 0 2px var(--color-premium-gold-400), 0 0 16px rgba(212, 167, 44, 0.45)'
           : levelTier
-          ? `0 0 14px ${levelTier.glow}`
-          : undefined,
+          ? `0 0 12px ${levelTier.glow}`
+          : '0 1px 3px rgba(0,0,0,0.28)',
       }}
     >
-      {/* Level-tier tint — a real DOM overlay, not a background-color on
-          the button itself. glossy-3d's own ::after pseudo-element (its
-          diagonal shine effect) sits on top of a plain background-color
-          with no z-index of its own, which was completely burying the
-          subtle tint there. An explicit z-index here guarantees this
-          renders above that shine, while still sitting below all the
-          real card content (icon, name, price), which naturally stacks
-          on top since it comes later in the DOM at the same z-index.
-          `key={business.level}` is the actual trigger — Framer Motion
-          treats a changed key as a brand-new element, so the wipe below
-          replays from `initial` every single time the level changes,
-          not just on first mount. This is what makes the reveal feel
-          like a genuine moment tied to the upgrade itself, automatic,
-          with no extra tap required. */}
-      {levelTier && (
-        <motion.div
-          key={business.level}
-          className="absolute inset-0 rounded-[22px] pointer-events-none overflow-hidden"
-          style={{ backgroundColor: levelTier.tint, zIndex: 1 }}
-          initial={{ clipPath: 'inset(0 100% 0 0)' }}
-          animate={{ clipPath: 'inset(0 0% 0 0)' }}
-          transition={{ duration: 0.65, ease: 'easeOut' }}
-        >
-          {/* A brighter leading edge on the wipe itself — makes the sweep
-              read as a deliberate "reveal," not just a fade-in. */}
-          <motion.div
-            className="absolute inset-y-0 w-10 pointer-events-none"
-            style={{ background: `linear-gradient(90deg, transparent, ${levelTier.border}55, transparent)` }}
-            initial={{ left: '-10%' }}
-            animate={{ left: '110%' }}
-            transition={{ duration: 0.65, ease: 'easeOut' }}
-          />
-        </motion.div>
-      )}
 
       {celebrating && (
         <>
@@ -167,75 +192,94 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
           🏆 +10 pts
         </motion.div>
       )}
-      {/* Full-bleed photo — fills the entire card, not just a header strip.
-          Everything else (title, description, badges, button) overlays on
-          top of it via the gradient below, exactly like the reference. */}
-      <div className="absolute inset-0">
+      {/* Glossy 3D image — inset with real padding on all sides (the
+          card itself stays flat), reusing the app's shared glossy-3d
+          treatment scoped to just this frame rather than the whole
+          card, per design direction: gloss on the internal image and
+          buttons only. Border/glow color is the business's own level
+          tier once owned, so the level color is still visible here even
+          though there's no full-card wash anymore. */}
+      <div
+        className="glossy-3d relative w-full h-[130px] rounded-2xl overflow-hidden flex-shrink-0"
+        style={{ border: `1.5px solid ${imageAccent}`, boxShadow: `0 0 14px ${hexToRgba(imageAccent, 0.35)}` }}
+      >
         <BusinessPhoto
           business={business}
           imageUrl={imageUrl}
           fallback={
             <div
               className="w-full h-full flex items-center justify-center"
-              style={{ background: `linear-gradient(135deg, ${business.themeColor}66, var(--color-premium-surface))` }}
+              style={{ background: `linear-gradient(135deg, ${business.themeColor}66, var(--color-premium-elevated))` }}
             >
-              <BusinessIcon business={business} />
+              <BusinessIcon business={business} className="w-16 h-16 object-contain" emojiClassName="text-5xl" />
             </div>
           }
         />
       </div>
 
-      {/* Bottom gradient — fades from transparent to near-black so the
-          overlaid text stays readable against any photo/color underneath,
-          matching the reference's card treatment. */}
+      {/* Title, category subtitle, description — plain readable text on
+          the flat card surface, matching the reference's structure. */}
+      <div className="mt-3">
+        <h3 className="font-semibold text-[15px] leading-tight" style={{ color: 'var(--color-premium-text)' }}>
+          {business.name}
+        </h3>
+        <p className="text-[11px] font-medium mt-1" style={{ color: 'var(--color-premium-text-secondary)' }}>
+          {toTitleCase(category.label)}
+        </p>
+        <p className="text-[11px] leading-snug mt-2 line-clamp-2" style={{ color: 'var(--color-premium-text-secondary)' }}>
+          {business.description}
+        </p>
+      </div>
+
+      {/* Level + income pills — the info that was missing from the
+          reference layout, since this game needs it even though a
+          Reserve-now card wouldn't. */}
+      <div className="flex items-center gap-1.5 mt-2.5">
+        <span
+          className="px-2.5 py-1 rounded-full text-[10px] font-bold"
+          style={{ backgroundColor: hexToRgba(imageAccent, 0.16), color: imageAccent }}
+        >
+          {isOwned ? `Level ${business.level}` : 'Not owned'}
+        </span>
+        <span
+          className="px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1"
+          style={{ backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--color-premium-green-500)' }}
+        >
+          <CoinIcon className="w-2.5 h-2.5" premium />
+          ₹{Math.round(isOwned ? business.profitPerMin : business.baseProfitPerMin)}/min
+        </span>
+      </div>
+
+      {/* Divider + price/CTA footer, matching the reference exactly. */}
       <div
-        className="absolute inset-x-0 bottom-0 h-[72%] pointer-events-none"
-        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 35%, rgba(0,0,0,0.25) 70%, rgba(0,0,0,0) 100%)' }}
-      />
-
-      {/* Content — pinned to the bottom of the card, sitting on the
-          gradient above. */}
-      <div className="relative z-10 mt-auto flex flex-col gap-2 px-3.5 pb-3.5 pt-2">
-        <div>
-          <h3 className="font-bold text-white text-[15px] leading-tight" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
-            {business.name}
-          </h3>
-          <p className="text-white/80 text-[11px] leading-snug mt-1 line-clamp-2">
-            {business.description}
-          </p>
-        </div>
-
-        {/* Two badge pills, matching the reference's rating/stay pills —
-            here showing level-or-buy status and income rate instead,
-            since those are this game's equivalent "at a glance" facts. */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <motion.span
-            className="px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1"
-            style={{ backgroundColor: 'rgba(255,255,255,0.16)', color: '#ffffff', backdropFilter: 'blur(4px)' }}
-            animate={isAffordable && !isOwned ? { boxShadow: ['0 0 0px rgba(212,167,44,0)', '0 0 10px rgba(212,167,44,0.85)', '0 0 0px rgba(212,167,44,0)'] } : {}}
-            transition={{ duration: 1.6, repeat: isAffordable && !isOwned ? Infinity : 0, ease: 'easeInOut' }}
-          >
-            {isOwned ? `⭐ LEVEL ${business.level}` : '🔓 Buy'}
-          </motion.span>
-          <span
-            className="px-2.5 py-1 rounded-full text-[10px] font-semibold flex items-center gap-1"
-            style={{ backgroundColor: 'rgba(255,255,255,0.16)', color: '#ffffff', backdropFilter: 'blur(4px)' }}
-          >
-            <CoinIcon className="w-2.5 h-2.5" premium />
-            ₹{Math.round(isOwned ? business.profitPerMin : business.baseProfitPerMin)}/min
-          </span>
-        </div>
+        className="flex items-center justify-between mt-2.5 pt-2.5"
+        style={{ borderTop: '1px solid var(--color-premium-border)' }}
+      >
+        <span className="font-bold text-[16px]" style={{ color: imageAccent }}>
+          ₹{formatShort(business.cost)}
+        </span>
 
         {/* CTA — visually a button, but this whole card is already a
             <button> (onSelect above), so this stays a <div> to avoid
             nesting interactive elements; tapping anywhere on the card,
-            including here, opens the same detail sheet. */}
-        <div
-          className="w-full mt-0.5 py-2.5 rounded-full text-center font-bold text-[12.5px]"
-          style={{ backgroundColor: '#ffffff', color: '#1a1a1a' }}
+            including here, opens the same detail sheet. Still built from
+            the shared btn-premium-pressable "recipe" (gradient face,
+            solid lip shadow, real depress on tap) via inline styles here
+            instead of the static CSS class, so the face/lip colors can
+            be derived from this business's own level color — the class
+            stays as the default teal look for anywhere else that wants
+            the pressable style without per-level coloring. */}
+        <motion.div
+          whileTap={{ y: 3, boxShadow: `0 1px 0 ${darkenHex(imageAccent, 0.35)}, 0 2px 5px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.5)` }}
+          className="px-6 py-2.5 rounded-full font-bold text-[12.5px]"
+          style={{
+            background: `linear-gradient(180deg, ${lightenHex(imageAccent, 0.35)} 0%, ${imageAccent} 100%)`,
+            color: 'var(--color-premium-text-inverse)',
+            boxShadow: `0 4px 0 ${darkenHex(imageAccent, 0.35)}, 0 7px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.5)`,
+          }}
         >
-          {isOwned ? `Upgrade — ₹${formatShort(business.cost)}` : `Buy — ₹${formatShort(business.cost)}`}
-        </div>
+          {isOwned ? 'Upgrade' : 'Buy'}
+        </motion.div>
       </div>
     </motion.button>
   );

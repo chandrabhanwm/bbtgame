@@ -211,4 +211,30 @@
       linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.025) 22%, transparent 46%);
     pointer-events: none;
   }
+
+  /* Pressable/embossed button — a raised, thick-feeling CTA style, built
+     from the same three teal stops already in use everywhere else
+     (gold-100 as the light face, gold-400 as the base, gold-600 as the
+     "lip" underneath that gives it depth), not new hues. The lip itself
+     is a solid offset shadow (0 4px 0 ...), the classic technique mobile
+     game buttons use to read as physically thick rather than a flat
+     filled pill. :active compresses the lip and nudges the button down,
+     so it visually depresses on tap/press, not just scales like the
+     rest of the app's tap feedback. */
+  .btn-premium-pressable {
+    background: linear-gradient(180deg, var(--color-premium-gold-100) 0%, var(--color-premium-gold-400) 100%);
+    color: var(--color-premium-text-inverse);
+    box-shadow:
+      0 4px 0 var(--color-premium-gold-600),
+      0 7px 12px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    transition: transform 100ms ease-out, box-shadow 100ms ease-out;
+  }
+  .btn-premium-pressable:active {
+    transform: translateY(3px);
+    box-shadow:
+      0 1px 0 var(--color-premium-gold-600),
+      0 2px 5px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
 }
