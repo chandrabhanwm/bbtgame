@@ -201,7 +201,7 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
           though there's no full-card wash anymore. */}
       <div
         className="glossy-3d relative w-full h-[130px] rounded-2xl overflow-hidden flex-shrink-0"
-        style={{ border: `1.5px solid ${imageAccent}`, boxShadow: `0 0 14px ${hexToRgba(imageAccent, 0.35)}` }}
+        style={{ border: `1.5px solid ${imageAccent}` }}
       >
         <BusinessPhoto
           business={business}
@@ -218,15 +218,35 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
       </div>
 
       {/* Title, category subtitle, description — plain readable text on
-          the flat card surface, matching the reference's structure. */}
+          the flat card surface, matching the reference's structure.
+          Every block below reserves a FIXED height (line-clamp + explicit
+          minHeight) rather than sizing to its actual content. Business
+          names and descriptions vary in length — "Mehta Kirana Store"
+          (1 line) vs "Lighthouse Chai Corner" (2 lines) — and without a
+          reserved height, a 1-line title lets everything below it (and
+          the price/Upgrade footer) sit higher than a neighboring card
+          whose title wrapped to 2 lines, breaking row alignment across
+          the whole grid. Reserving space up front means every card in
+          the grid has an identical skeleton no matter what text lands in
+          it — short text just leaves a little blank space in its slot
+          instead of collapsing the card around it. */}
       <div className="mt-3">
-        <h3 className="font-semibold text-[15px] leading-tight" style={{ color: 'var(--color-premium-text)' }}>
+        <h3
+          className="font-semibold text-[15px] leading-tight line-clamp-2"
+          style={{ color: 'var(--color-premium-text)', minHeight: '38px' }}
+        >
           {business.name}
         </h3>
-        <p className="text-[11px] font-medium mt-1" style={{ color: 'var(--color-premium-text-secondary)' }}>
+        <p
+          className="text-[11px] font-medium mt-1 line-clamp-1"
+          style={{ color: 'var(--color-premium-text-secondary)', minHeight: '14px' }}
+        >
           {toTitleCase(category.label)}
         </p>
-        <p className="text-[11px] leading-snug mt-2 line-clamp-2" style={{ color: 'var(--color-premium-text-secondary)' }}>
+        <p
+          className="text-[11px] leading-snug mt-2 line-clamp-2"
+          style={{ color: 'var(--color-premium-text-secondary)', minHeight: '30px' }}
+        >
           {business.description}
         </p>
       </div>
