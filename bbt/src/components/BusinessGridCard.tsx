@@ -125,28 +125,35 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
 
   return (
     <motion.button
-      whileTap={{ scale: 0.97 }}
+      whileTap={{
+        scale: 0.99,
+        y: 4,
+        boxShadow: celebrating
+          ? '0 0 0 2px var(--color-premium-gold-400), 0 0 16px rgba(212, 167, 44, 0.45)'
+          : `0 1px 0 ${darkenHex(imageAccent, 0.4)}, 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.14)`,
+      }}
       animate={{ scale: celebrating ? [1, 1.03, 1] : 1 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
       onClick={() => { playTap(); onSelect(business.id); }}
       className="relative flex flex-col rounded-[20px] text-left cursor-pointer p-3 overflow-hidden"
       style={{
-        // Flat card, but tinted per level — a gradient that fades the
-        // level's own color in from the top-left corner into the normal
-        // dark surface, plus a level-colored border. Deliberately not the
-        // glossy embossed treatment (that stays scoped to the image/
-        // buttons only, per design direction) — just a plain color wash,
-        // so the whole card visibly changes on every upgrade without
-        // becoming "glossy 3D" itself.
+        // Flat color, but a real physical "lip" underneath — the same
+        // thick/pressable technique the Upgrade button already uses
+        // (solid offset shadow = thickness, not the diagonal glossy
+        // sheen, which stays scoped to the image/button faces only).
+        // Reusing imageAccent (the level's own color, or default teal
+        // when unowned) so the lip always matches everything else on
+        // the card. whileTap above compresses this down to a thin lip
+        // and nudges the whole card down 4px, so tapping ANYWHERE on
+        // the card — not just the Upgrade button — reads as physically
+        // pressing it in.
         background: levelTier
           ? `linear-gradient(165deg, ${hexToRgba(levelTier.border, 0.24)} 0%, var(--color-premium-surface) 65%)`
           : 'var(--color-premium-surface)',
         border: levelTier ? `1px solid ${hexToRgba(levelTier.border, 0.55)}` : '1px solid var(--color-premium-border)',
         boxShadow: celebrating
           ? '0 0 0 2px var(--color-premium-gold-400), 0 0 16px rgba(212, 167, 44, 0.45)'
-          : levelTier
-          ? `0 0 12px ${levelTier.glow}`
-          : '0 1px 3px rgba(0,0,0,0.28)',
+          : `0 6px 0 ${darkenHex(imageAccent, 0.4)}, 0 10px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.14)`,
       }}
     >
       {/* Level-up wipe reveal — a brief, automatic color sweep across the
@@ -226,8 +233,19 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
           level color is still visible here even though there's no
           full-card wash. */}
       <div
-        className="glossy-3d relative w-full h-[130px] rounded-2xl overflow-hidden flex-shrink-0"
-        style={{ border: `1.5px solid ${imageAccent}`, zIndex: 2 }}
+        className="relative w-full h-[130px] rounded-2xl overflow-hidden flex-shrink-0"
+        style={{
+          border: `1.5px solid ${imageAccent}`,
+          // Sunken into the card, not raised — the opposite direction
+          // from the card's own outward lip shadow above. A dark inset
+          // shadow along the top/inner edge reads as a recessed slot the
+          // photo sits inside, with a faint inset highlight along the
+          // bottom edge suggesting the socket's far inside wall catching
+          // a little light — the same visual grammar as a physical
+          // photo-frame cutout pressed into a raised panel.
+          boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.55), inset 0 -1px 0 rgba(255,255,255,0.08)',
+          zIndex: 2,
+        }}
       >
         <BusinessPhoto
           business={business}
