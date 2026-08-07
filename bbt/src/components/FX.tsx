@@ -2,6 +2,30 @@ import React from 'react';
 import { motion } from 'motion/react';
 
 /**
+ * Rotating radial light rays behind a big celebration panel — the
+ * Monopoly-GO style "screen takeover" backdrop. Pure CSS conic-gradient,
+ * slowly spinning, sized bigger than its container so it bleeds off the
+ * edges rather than showing a hard circular boundary.
+ */
+export const Sunburst: React.FC<{ color?: string }> = ({ color = 'rgba(212,167,44,0.35)' }) => {
+  return (
+    <div
+      className="absolute pointer-events-none animate-sunburst"
+      style={{
+        top: '50%',
+        left: '50%',
+        width: '220%',
+        height: '220%',
+        marginLeft: '-110%',
+        marginTop: '-110%',
+        background: `conic-gradient(from 0deg, ${color} 0deg, transparent 18deg, transparent 36deg, ${color} 42deg, transparent 60deg, transparent 78deg, ${color} 84deg, transparent 102deg, transparent 120deg, ${color} 126deg, transparent 144deg, transparent 162deg, ${color} 168deg, transparent 186deg, transparent 204deg, ${color} 210deg, transparent 228deg, transparent 246deg, ${color} 252deg, transparent 270deg, transparent 288deg, ${color} 294deg, transparent 312deg, transparent 330deg, ${color} 336deg, transparent 354deg, transparent 360deg)`,
+        zIndex: 0,
+      }}
+    />
+  );
+};
+
+/**
  * A little cluster of coins that pop out and float up, then vanish.
  * Drop this at the spot the player just earned or spent money —
  * the tap point, a shop, a collected bubble — for the game's signature
@@ -115,7 +139,7 @@ export const CoinFlight: React.FC<{ count?: number }> = ({ count = 10 }) => {
  * not falling flecks — nothing here moves very far, which is what reads
  * as "elegant" rather than "scattered."
  */
-export const Sparkle: React.FC<{ count?: number }> = ({ count = 14 }) => {
+export const Sparkle: React.FC<{ count?: number; coinCount?: number }> = ({ count = 20, coinCount = 14 }) => {
   const colors = [
     'var(--color-premium-gold-400)',
     'var(--color-premium-gold-100)',
@@ -127,7 +151,18 @@ export const Sparkle: React.FC<{ count?: number }> = ({ count = 14 }) => {
     top: 4 + Math.random() * 92,
     delay: Math.random() * 1.4,
     color: colors[i % colors.length],
-    size: 5 + Math.random() * 7,
+    size: 6 + Math.random() * 9,
+  }));
+
+  // Falling coin shower — bigger, denser, and actually falls (unlike
+  // the in-place twinkles above), which is what gives this the "raining
+  // rewards" feel big mobile-game celebrations lean on.
+  const coins = Array.from({ length: coinCount }).map((_, i) => ({
+    id: i,
+    left: 2 + Math.random() * 96,
+    delay: Math.random() * 0.9,
+    duration: 1.4 + Math.random() * 0.8,
+    size: 16 + Math.random() * 10,
   }));
 
   return (
@@ -155,6 +190,20 @@ export const Sparkle: React.FC<{ count?: number }> = ({ count = 14 }) => {
             filter: `drop-shadow(0 0 3px ${s.color})`,
           }}
         />
+      ))}
+      {coins.map((c) => (
+        <span
+          key={`coin-${c.id}`}
+          className="absolute block"
+          style={{
+            left: `${c.left}%`,
+            top: '-8%',
+            fontSize: c.size,
+            animation: `coinShowerFall ${c.duration}s cubic-bezier(0.4, 0.1, 0.6, 1) ${c.delay}s forwards`,
+          }}
+        >
+          🪙
+        </span>
       ))}
     </div>
   );

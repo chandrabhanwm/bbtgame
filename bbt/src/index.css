@@ -208,8 +208,27 @@
 }
 .animate-sparkle-twinkle { animation: sparkleTwinkle 1.8s ease-in-out forwards; }
 
+/* Slow-rotating sunburst rays behind the big celebration panel —
+   Monopoly-GO style radiating light, not a static glow. */
+@keyframes sunburstSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-sunburst { animation: sunburstSpin 12s linear infinite; }
+
+/* Heavier coin shower fall, for big full-screen milestone celebrations —
+   longer travel and a gentle side-to-side sway, distinct from the small
+   in-place CoinBurst pop used for everyday taps. */
+@keyframes coinShowerFall {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  50% { transform: translate(14px, 130px) rotate(180deg); }
+  90% { opacity: 1; }
+  100% { transform: translate(-10px, 280px) rotate(340deg); opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-coin-float, .animate-juicy-pop, .animate-wallet-flash, .animate-shimmer::after, .animate-confetti, .animate-sparkle-twinkle {
+  .animate-coin-float, .animate-juicy-pop, .animate-wallet-flash, .animate-shimmer::after, .animate-confetti, .animate-sparkle-twinkle, .animate-sunburst {
     animation: none !important;
   }
 }

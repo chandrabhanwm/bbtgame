@@ -18,7 +18,7 @@ import { LeaderboardTab } from './components/LeaderboardTab';
 import { CityMapScreen } from './components/citymap/CityMapScreen';
 import { PortfolioScreen } from './components/PortfolioScreen';
 import { SettingsScreen } from './components/SettingsScreen';
-import { Sparkle, CoinBurst, CoinFlight } from './components/FX';
+import { Sparkle, Sunburst, CoinBurst, CoinFlight } from './components/FX';
 import { DistrictSummaryCard } from './components/DistrictSummaryCard';
 import { buildBusinessesForDistrict, districtEconomies, getDistrictTotalCost } from './data/districtBusinesses';
 import { bastiCity, getDistrict } from './data/cityMapData';
@@ -1469,47 +1469,80 @@ function AppInner({ currentUid }: { currentUid: string }) {
             trigger reuses this directly instead of copy-pasting a third. */}
         <AnimatePresence>
           {milestone && !poolClaimUI && (
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 12 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.96, opacity: 0 }}
-              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-              className="absolute inset-x-8 top-1/3 z-50 p-5 rounded-3xl text-center flex flex-col items-center overflow-visible"
-              style={{
-                backgroundColor: 'var(--color-premium-surface)',
-                border: `2px solid var(--color-premium-${milestone.color === 'gold' ? 'gold-400' : 'green-500'})`,
-                // Soft glow around the whole panel, not just its border —
-                // this, plus the twinkling particles inside it, is what
-                // pushes the moment toward "elegant" rather than a flat
-                // box with a colored outline.
-                boxShadow: `0 0 32px ${milestone.color === 'gold' ? 'rgba(212,167,44,0.4)' : 'rgba(34,197,94,0.35)'}, 0 12px 28px rgba(0,0,0,0.4)`,
-              }}
-            >
-              {showConfetti && <Sparkle />}
+            <>
+              {/* Full-screen dim backdrop — this is what makes it read as
+                  a screen takeover moment rather than a small inset card,
+                  the way big mobile game celebrations (Monopoly GO etc.)
+                  briefly own the whole screen instead of politely sharing
+                  it with the UI behind them. */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="absolute inset-0 z-40"
+                style={{ backgroundColor: 'rgba(4,10,16,0.72)', backdropFilter: 'blur(2px)' }}
+              />
 
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-3"
+              <motion.div
+                initial={{ scale: 0.3, opacity: 0, y: 12 }}
+                animate={{ scale: [0.3, 1.12, 0.94, 1.03, 1], opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ duration: 0.7, ease: 'easeOut' }}
+                className="absolute inset-x-6 top-1/2 z-50 p-7 rounded-3xl text-center flex flex-col items-center overflow-visible"
                 style={{
-                  backgroundColor: 'var(--color-premium-elevated)',
-                  border: `2px solid var(--color-premium-${milestone.color === 'gold' ? 'gold-400' : 'green-500'})`,
-                  boxShadow: `0 0 16px ${milestone.color === 'gold' ? 'rgba(212,167,44,0.5)' : 'rgba(34,197,94,0.45)'}`,
+                  transform: 'translateY(-50%)',
+                  backgroundColor: 'var(--color-premium-surface)',
+                  border: `2.5px solid var(--color-premium-${milestone.color === 'gold' ? 'gold-400' : 'green-500'})`,
+                  boxShadow: `0 0 48px ${milestone.color === 'gold' ? 'rgba(212,167,44,0.55)' : 'rgba(34,197,94,0.5)'}, 0 20px 40px rgba(0,0,0,0.5)`,
                 }}
               >
-                {milestone.icon}
-              </div>
-              <h2
-                className="font-bold text-base uppercase tracking-widest"
-                style={{ color: `var(--color-premium-${milestone.color === 'gold' ? 'gold-400' : 'green-500'})` }}
-              >
-                {milestone.title}
-              </h2>
-              <p className="text-[11px] font-medium leading-relaxed mt-2" style={{ color: 'var(--color-premium-text)' }}>
-                {milestone.message}
-              </p>
-              <div className="mt-3.5 text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-premium-green-500)' }}>
-                {milestone.bonusText}
-              </div>
-            </motion.div>
+                {/* Rotating light rays behind everything else in the
+                    panel — sits at the back via z-0, with the icon/text
+                    content given z-10 below to stay above it. */}
+                <Sunburst color={milestone.color === 'gold' ? 'rgba(212,167,44,0.4)' : 'rgba(34,197,94,0.35)'} />
+
+                {showConfetti && <Sparkle count={26} coinCount={18} />}
+
+                <motion.div
+                  initial={{ scale: 0, rotate: -20 }}
+                  animate={{ scale: [0, 1.3, 0.9, 1.08, 1], rotate: [-20, 8, -4, 0] }}
+                  transition={{ duration: 0.65, ease: 'easeOut', delay: 0.05 }}
+                  className="relative z-10 w-20 h-20 rounded-full flex items-center justify-center text-5xl mb-3"
+                  style={{
+                    backgroundColor: 'var(--color-premium-elevated)',
+                    border: `3px solid var(--color-premium-${milestone.color === 'gold' ? 'gold-400' : 'green-500'})`,
+                    boxShadow: `0 0 24px ${milestone.color === 'gold' ? 'rgba(212,167,44,0.6)' : 'rgba(34,197,94,0.55)'}`,
+                  }}
+                >
+                  {milestone.icon}
+                </motion.div>
+                <motion.h2
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: [0.5, 1.15, 1], opacity: 1 }}
+                  transition={{ duration: 0.5, ease: 'easeOut', delay: 0.15 }}
+                  className="relative z-10 font-bold text-xl uppercase tracking-widest"
+                  style={{
+                    color: `var(--color-premium-${milestone.color === 'gold' ? 'gold-400' : 'green-500'})`,
+                    textShadow: `0 0 20px ${milestone.color === 'gold' ? 'rgba(212,167,44,0.7)' : 'rgba(34,197,94,0.6)'}`,
+                  }}
+                >
+                  {milestone.title}
+                </motion.h2>
+                <p className="relative z-10 text-[13px] font-medium leading-relaxed mt-2.5" style={{ color: 'var(--color-premium-text)' }}>
+                  {milestone.message}
+                </p>
+                <motion.div
+                  initial={{ scale: 0.7, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.35, delay: 0.35 }}
+                  className="relative z-10 mt-4 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider"
+                  style={{ backgroundColor: 'rgba(34,197,94,0.16)', color: 'var(--color-premium-green-500)' }}
+                >
+                  {milestone.bonusText}
+                </motion.div>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
 
