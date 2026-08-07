@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { Lock } from 'lucide-react';
 import { Business } from '../types';
@@ -110,12 +110,34 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
   // justUpdated fires again before this clears, the effect just restarts
   // the window cleanly.
   const [celebrating, setCelebrating] = useState(false);
+  // A plain ref, not a useEffect cleanup, is what owns this timer's
+  // lifecycle — deliberately. The parent (useBusinessActions.ts) clears
+  // its own justUpdatedBusinessId flag after 700ms, which flips this
+  // component's `justUpdated` prop back to false. If the reset timer
+  // below were returned as this effect's cleanup function (the more
+  // typical pattern), React would silently cancel it the instant that
+  // prop flip happened — before the 950ms celebration was ever allowed
+  // to finish. The visible result: `celebrating` got stuck `true`
+  // forever after a business's very first purchase, since the early
+  // `return` on the next (false) run of this effect never got a chance
+  // to reset it either. A real screenshot confirmed the symptom: the
+  // gold celebration glow ring never went away, permanently replacing
+  // the card's normal thick pressable shadow. Storing the timer in a
+  // ref means a `justUpdated` flip to false is simply ignored — only
+  // this timer's own completion, or a genuine component unmount
+  // (separate effect below), is allowed to end the celebration.
+  const celebrateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!justUpdated) return;
     setCelebrating(true);
-    const t = setTimeout(() => setCelebrating(false), 700);
-    return () => clearTimeout(t);
+    if (celebrateTimeoutRef.current) clearTimeout(celebrateTimeoutRef.current);
+    celebrateTimeoutRef.current = setTimeout(() => setCelebrating(false), 950);
   }, [justUpdated]);
+  useEffect(() => {
+    return () => {
+      if (celebrateTimeoutRef.current) clearTimeout(celebrateTimeoutRef.current);
+    };
+  }, []);
 
   const levelTier = getLevelTierColor(business.level);
   // The glossy image frame's accent color — the level's own color once
@@ -132,10 +154,10 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
           ? '0 0 0 2px var(--color-premium-gold-400), 0 0 16px rgba(212, 167, 44, 0.45)'
           : `0 1px 0 ${darkenHex(imageAccent, 0.4)}, 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.14)`,
       }}
-      animate={{ scale: celebrating ? [1, 1.03, 1] : 1 }}
-      transition={{ duration: 0.18, ease: 'easeOut' }}
+      animate={{ scale: celebrating ? [1, 0.95, 1.08, 0.98, 1.02, 1] : 1 }}
+      transition={{ duration: celebrating ? 0.55 : 0.18, ease: 'easeOut' }}
       onClick={() => { playTap(); onSelect(business.id); }}
-      className="relative flex flex-col rounded-[20px] text-left cursor-pointer p-3 overflow-hidden"
+      className="relative flex flex-col rounded-[20px] text-left cursor-pointer p-3"
       style={{
         // Flat color, but a real physical "lip" underneath — the same
         // thick/pressable technique the Upgrade button already uses
@@ -187,16 +209,16 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
 
       {celebrating && (
         <>
-          <CoinBurst count={7} />
+          <CoinBurst count={9} />
           <motion.div
-            className="absolute -top-2 left-1/2 z-20 px-2.5 py-1 rounded-full font-bold text-[10px] whitespace-nowrap pointer-events-none flex items-center gap-1"
+            className="absolute -top-3 left-1/2 z-20 px-3 py-1.5 rounded-full font-bold text-[12px] whitespace-nowrap pointer-events-none flex items-center gap-1"
             style={{
               backgroundColor: 'var(--color-premium-gold-400)',
               color: 'var(--color-premium-text-inverse)',
-              boxShadow: '0 2px 10px rgba(212,167,44,0.6)',
+              boxShadow: '0 3px 14px rgba(212,167,44,0.7)',
             }}
-            initial={{ opacity: 0, y: 4, x: '-50%', scale: 0.6 }}
-            animate={{ opacity: [0, 1, 1, 0], y: [4, -14, -22, -30], scale: [0.6, 1.15, 1, 0.9] }}
+            initial={{ opacity: 0, y: 6, x: '-50%', scale: 0.5 }}
+            animate={{ opacity: [0, 1, 1, 0], y: [6, -16, -26, -36], scale: [0.5, 1.25, 1, 0.92] }}
             transition={{ duration: 0.9, ease: 'easeOut', times: [0, 0.25, 0.7, 1] }}
           >
             {business.level === 1 ? '✓ Purchased!' : '⬆ Level Up!'}

@@ -107,10 +107,58 @@ export const CoinFlight: React.FC<{ count?: number }> = ({ count = 10 }) => {
 
 
 /**
- * A short burst of falling confetti flecks for big celebratory moments
- * (level up, first unlock, milestone). Keep it brief — this is the one
- * place the app spends its "boldness."
+ * An elegant alternative to Confetti above — soft twinkling sparkle
+ * particles and a gentle radial glow, for celebratory moments that
+ * should feel refined rather than a loud confetti-cannon burst (district
+ * completion, a milestone modal). Particles are 4-pointed diamond/star
+ * shapes that fade and scale in place (see the sparkleTwinkle keyframe),
+ * not falling flecks — nothing here moves very far, which is what reads
+ * as "elegant" rather than "scattered."
  */
+export const Sparkle: React.FC<{ count?: number }> = ({ count = 14 }) => {
+  const colors = [
+    'var(--color-premium-gold-400)',
+    'var(--color-premium-gold-100)',
+    '#ffffff',
+  ];
+  const sparkles = Array.from({ length: count }).map((_, i) => ({
+    id: i,
+    left: 4 + Math.random() * 92,
+    top: 4 + Math.random() * 92,
+    delay: Math.random() * 1.4,
+    color: colors[i % colors.length],
+    size: 5 + Math.random() * 7,
+  }));
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-visible z-40" aria-hidden="true">
+      {/* Soft glow breathing behind the sparkles — this, more than the
+          particles themselves, is what sells "elegant" over "busy." */}
+      <div
+        className="absolute inset-0 rounded-[inherit]"
+        style={{
+          background: 'radial-gradient(60% 60% at 50% 45%, rgba(212,167,44,0.28) 0%, transparent 70%)',
+        }}
+      />
+      {sparkles.map((s) => (
+        <span
+          key={s.id}
+          className="absolute animate-sparkle-twinkle block"
+          style={{
+            left: `${s.left}%`,
+            top: `${s.top}%`,
+            width: s.size,
+            height: s.size,
+            background: s.color,
+            clipPath: 'polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%)',
+            animationDelay: `${s.delay}s`,
+            filter: `drop-shadow(0 0 3px ${s.color})`,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
 export const Confetti: React.FC<{ count?: number }> = ({ count = 18 }) => {
   const colors = [
     'var(--color-premium-gold-400)',

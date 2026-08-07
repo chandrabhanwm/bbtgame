@@ -196,8 +196,20 @@
 }
 .animate-confetti { animation: confettiFall 1.1s cubic-bezier(0.4, 0.1, 0.6, 1) forwards; }
 
+/* Twinkle — a gentle in-place fade/scale pulse for sparkle particles, the
+   elegant alternative to confetti's fall+spin. No translation at all;
+   the particle just breathes in and out where it already is, which is
+   what makes this read as refined rather than a scattered effect. */
+@keyframes sparkleTwinkle {
+  0% { transform: scale(0) rotate(0deg); opacity: 0; }
+  35% { transform: scale(1) rotate(45deg); opacity: 1; }
+  65% { transform: scale(0.85) rotate(60deg); opacity: 0.85; }
+  100% { transform: scale(0) rotate(90deg); opacity: 0; }
+}
+.animate-sparkle-twinkle { animation: sparkleTwinkle 1.8s ease-in-out forwards; }
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-coin-float, .animate-juicy-pop, .animate-wallet-flash, .animate-shimmer::after, .animate-confetti {
+  .animate-coin-float, .animate-juicy-pop, .animate-wallet-flash, .animate-shimmer::after, .animate-confetti, .animate-sparkle-twinkle {
     animation: none !important;
   }
 }

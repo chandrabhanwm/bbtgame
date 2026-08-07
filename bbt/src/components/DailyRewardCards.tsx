@@ -6,7 +6,7 @@ import { formatCash } from '../utils/formatCash';
 import { CoinIcon } from './CoinIcon';
 import { CoinBurst } from './FX';
 import { CountdownClock } from './CountdownClock';
-import { playClick, playUnlock } from '../utils/audio';
+import { playClick, playUnlock, playCoin } from '../utils/audio';
 import { getCooldownRemainingSeconds, CLAIM_COOLDOWN_MS } from '../utils/cooldown';
 import { logAnalyticsEvent } from '../firebase/config';
 
@@ -113,6 +113,13 @@ export const DailyRewardCards: React.FC<DailyRewardCardsProps> = ({ cards, onScr
       playClick();
       onScratch(index);
       setJustRevealedIndex(index);
+      // The reveal itself — what did I win — had no sound of its own
+      // before this; only the swipe gesture (playClick) and, later, the
+      // ad-claim path (playUnlock) made noise. The actual "prize"
+      // moment was silent. A short delay lets it land with the reveal
+      // animation instead of firing at the exact instant of the swipe,
+      // which is still mid-gesture.
+      setTimeout(() => playCoin(), 150);
       setTimeout(() => setJustRevealedIndex((cur) => (cur === index ? null : cur)), 600);
     }
   };
@@ -153,7 +160,7 @@ export const DailyRewardCards: React.FC<DailyRewardCardsProps> = ({ cards, onScr
           const isLocked = isLockedByOtherActive || isLockedByCooldown;
 
           return (
-          <div key={index} className="glossy-3d rounded-2xl overflow-hidden relative" style={{ minHeight: '108px' }}>
+          <div key={index} className="glossy-3d rounded-2xl relative" style={{ minHeight: '108px' }}>
             <AnimatePresence mode="wait">
               {!card.scratched ? (
                 <motion.div
@@ -164,7 +171,7 @@ export const DailyRewardCards: React.FC<DailyRewardCardsProps> = ({ cards, onScr
                   onDragEnd={(_, info) => handleSwipe(index, info)}
                   onClick={() => isLocked && isLockedByOtherActive && handleSwipe(index, { offset: { x: 0, y: 0 } } as PanInfo)}
                   whileTap={!isLocked ? { scale: 0.97 } : {}}
-                  className={`absolute inset-0 flex flex-col items-center justify-center gap-2.5 overflow-hidden ${isLocked ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
+                  className={`absolute inset-0 rounded-2xl flex flex-col items-center justify-center gap-2.5 overflow-hidden ${isLocked ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
                   style={{
                     background: 'linear-gradient(155deg, #3D1F2C 0%, var(--color-premium-surface) 55%, var(--color-premium-bg) 100%)',
                     opacity: isLocked ? 0.55 : 1,
@@ -204,9 +211,9 @@ export const DailyRewardCards: React.FC<DailyRewardCardsProps> = ({ cards, onScr
               ) : (
                 <motion.div
                   key="revealed"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: [0.5, 1.15, 0.95, 1.02, 1] }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
                   className="absolute inset-0 flex flex-col items-center justify-center p-2 gap-1.5"
                 >
                   {justRevealedIndex === index && <CoinBurst count={8} emoji="✨" />}

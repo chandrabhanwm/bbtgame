@@ -18,7 +18,7 @@ import { LeaderboardTab } from './components/LeaderboardTab';
 import { CityMapScreen } from './components/citymap/CityMapScreen';
 import { PortfolioScreen } from './components/PortfolioScreen';
 import { SettingsScreen } from './components/SettingsScreen';
-import { Confetti, CoinBurst, CoinFlight } from './components/FX';
+import { Sparkle, CoinBurst, CoinFlight } from './components/FX';
 import { DistrictSummaryCard } from './components/DistrictSummaryCard';
 import { buildBusinessesForDistrict, districtEconomies, getDistrictTotalCost } from './data/districtBusinesses';
 import { bastiCity, getDistrict } from './data/cityMapData';
@@ -1470,23 +1470,29 @@ function AppInner({ currentUid }: { currentUid: string }) {
         <AnimatePresence>
           {milestone && !poolClaimUI && (
             <motion.div
-              initial={{ scale: 0.94, opacity: 0, y: 16 }}
+              initial={{ scale: 0.92, opacity: 0, y: 12 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.96, opacity: 0 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
+              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
               className="absolute inset-x-8 top-1/3 z-50 p-5 rounded-3xl text-center flex flex-col items-center overflow-visible"
               style={{
                 backgroundColor: 'var(--color-premium-surface)',
                 border: `2px solid var(--color-premium-${milestone.color === 'gold' ? 'gold-400' : 'green-500'})`,
+                // Soft glow around the whole panel, not just its border —
+                // this, plus the twinkling particles inside it, is what
+                // pushes the moment toward "elegant" rather than a flat
+                // box with a colored outline.
+                boxShadow: `0 0 32px ${milestone.color === 'gold' ? 'rgba(212,167,44,0.4)' : 'rgba(34,197,94,0.35)'}, 0 12px 28px rgba(0,0,0,0.4)`,
               }}
             >
-              {showConfetti && <Confetti />}
+              {showConfetti && <Sparkle />}
 
               <div
                 className="w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-3"
                 style={{
                   backgroundColor: 'var(--color-premium-elevated)',
                   border: `2px solid var(--color-premium-${milestone.color === 'gold' ? 'gold-400' : 'green-500'})`,
+                  boxShadow: `0 0 16px ${milestone.color === 'gold' ? 'rgba(212,167,44,0.5)' : 'rgba(34,197,94,0.45)'}`,
                 }}
               >
                 {milestone.icon}
