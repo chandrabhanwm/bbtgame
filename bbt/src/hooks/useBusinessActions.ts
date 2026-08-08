@@ -165,6 +165,14 @@ export function useBusinessActions({
             bonusText: 'Every empire starts with one shop.',
             color: 'gold',
           });
+          // This was the actual bug behind "first purchase feels weaker
+          // than level-up" — the panel showed, but showConfetti was
+          // never set true, so the Sparkle/coin-shower particles (which
+          // only render when {showConfetti && <Sparkle />}) simply never
+          // fired. The Level Up trigger above always had this line; this
+          // one and the "First Upgrade" one below were missing it.
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 1300);
         } else if (!isUnlocking && !stats.hasMadeFirstUpgrade) {
           playLevelUp();
           setMilestone({
@@ -174,6 +182,29 @@ export function useBusinessActions({
             bonusText: 'Upgrades are how every business becomes worth more.',
             color: 'gold',
           });
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 1300);
+        } else if (usesStrategyLayer && newLvl === 6) {
+          // Reaching the hard level cap is a genuine "bigger moment" —
+          // there's nowhere left to invest in this specific business —
+          // so per design direction this also gets the full takeover,
+          // same as first-purchase/first-upgrade, even though it happens
+          // repeatedly across a player's whole roster (once per business,
+          // not once ever). Routine upgrades below level 6 deliberately
+          // do NOT hit this branch — those stay scoped to the in-card
+          // celebration only, since a full-screen takeover on every one
+          // of potentially dozens of routine taps per session would hurt
+          // the core gameplay loop rather than help it.
+          playLevelUp();
+          setMilestone({
+            icon: '💎',
+            title: 'Maxed Out!',
+            message: `${b.name} just reached Level 6 — its full potential.`,
+            bonusText: 'Fully mastered. Time to invest elsewhere.',
+            color: 'gold',
+          });
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 1300);
         }
 
         setStats((statsPrev) => {

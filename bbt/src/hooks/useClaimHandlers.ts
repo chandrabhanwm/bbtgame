@@ -1,9 +1,11 @@
 import { Business, PlayerStats } from '../types';
 import { isDailyGoalComplete } from '../utils/dailyGoal';
-import { playCoin } from '../utils/audio';
+import { playCoin, playLevelUp } from '../utils/audio';
 import { applyContestPoints, todayDateString } from '../utils/weeklyContest';
 import { getCooldownRemainingSeconds } from '../utils/cooldown';
 import { progressionConfig } from '../config/progressionConfig';
+
+type MilestoneState = { icon: string; title: string; message: string; bonusText: string; color: 'gold' | 'green' };
 
 interface UseClaimHandlersParams {
   stats: PlayerStats;
@@ -11,6 +13,8 @@ interface UseClaimHandlersParams {
   setStats: React.Dispatch<React.SetStateAction<PlayerStats>>;
   triggerCashPulse: () => void;
   triggerMoneyFlight: () => void;
+  setMilestone: (m: MilestoneState | null) => void;
+  setShowConfetti: (v: boolean) => void;
 }
 
 /**
@@ -24,7 +28,7 @@ interface UseClaimHandlersParams {
  * ends the same way — cash pulse, coin flight, coin sound — which is
  * exactly why grouping them together makes sense as one file.
  */
-export function useClaimHandlers({ stats, businessesByDistrict, setStats, triggerCashPulse, triggerMoneyFlight }: UseClaimHandlersParams) {
+export function useClaimHandlers({ stats, businessesByDistrict, setStats, triggerCashPulse, triggerMoneyFlight, setMilestone, setShowConfetti }: UseClaimHandlersParams) {
   /** Claims the pool — now gated by a genuine cooldown
    *  (progressionConfig.poolClaimCooldownMinutes) between any two
    *  claims, not just the double-claim's own short cooldown. Added
@@ -105,10 +109,28 @@ export function useClaimHandlers({ stats, businessesByDistrict, setStats, trigge
    *  shows the value that was already generated at the last reset. No
    *  cash changes hands here at all; that only happens on claim. */
   const handleScratchCard = (index: number) => {
-    setStats((prev) => ({
-      ...prev,
-      rewardCards: prev.rewardCards.map((c, i) => (i === index ? { ...c, scratched: true } : c)),
-    }));
+    let revealedValue = 0;
+    setStats((prev) => {
+      revealedValue = prev.rewardCards[index]?.value ?? 0;
+      return {
+        ...prev,
+        rewardCards: prev.rewardCards.map((c, i) => (i === index ? { ...c, scratched: true } : c)),
+      };
+    });
+    // Scratch cards are infrequent (3 per day, not dozens of times per
+    // session like a business upgrade), so unlike routine upgrades this
+    // gets the full screen-takeover Milestone treatment every time —
+    // there's no risk of it wearing out its welcome at this frequency.
+    playLevelUp();
+    setMilestone({
+      icon: '🎁',
+      title: 'Scratch Card!',
+      message: `You won ₹${revealedValue.toLocaleString('en-IN')}!`,
+      bonusText: 'Watch an ad below to claim it.',
+      color: 'gold',
+    });
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 1300);
   };
 
   /** Called after the player watches the rewarded ad for a specific

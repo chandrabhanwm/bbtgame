@@ -813,7 +813,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
   // — extracted into its own hook per the Phase 0 architecture cleanup
   // (src/hooks/useClaimHandlers.ts). Behavior preserved exactly.
   const { handleClaimPool, handleDoubleClaim, handleScratchCard, handleClaimCard } = useClaimHandlers({
-    stats, businessesByDistrict, setStats, triggerCashPulse, triggerMoneyFlight,
+    stats, businessesByDistrict, setStats, triggerCashPulse, triggerMoneyFlight, setMilestone, setShowConfetti,
   });
 
   // DYNAMIC LEVEL UP SYSTEM

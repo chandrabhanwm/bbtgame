@@ -255,7 +255,7 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
           level color is still visible here even though there's no
           full-card wash. */}
       <div
-        className="relative w-full h-[130px] rounded-2xl overflow-hidden flex-shrink-0"
+        className="relative w-full h-[100px] rounded-2xl overflow-hidden flex-shrink-0"
         style={{
           border: `1.5px solid ${imageAccent}`,
           // Sunken into the card, not raised — the opposite direction
@@ -283,14 +283,13 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
         />
       </div>
 
-      {/* Title, category subtitle, description — plain readable text on
-          the flat card surface. Every block below reserves a FIXED height
-          (line-clamp + explicit minHeight) rather than sizing to actual
-          content, so a 1-line title doesn't let everything below it sit
-          higher than a neighboring card whose title wrapped to 2 lines —
-          every card in the grid keeps an identical skeleton regardless of
-          what text lands in it. */}
-      <div className="mt-3 relative" style={{ zIndex: 2 }}>
+      {/* Title + category subtitle only now — description removed for a
+          more compact card. Both blocks still reserve a FIXED height so
+          a 1-line title doesn't let anything below it sit higher than a
+          neighboring card whose title wrapped to 2 lines — every card in
+          the grid keeps an identical skeleton regardless of what text
+          lands in it. */}
+      <div className="mt-2.5 relative" style={{ zIndex: 2 }}>
         <h3
           className="font-semibold text-[15px] leading-tight line-clamp-2"
           style={{ color: 'var(--color-premium-text)', minHeight: '38px' }}
@@ -303,12 +302,6 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
         >
           {toTitleCase(category.label)}
         </p>
-        <p
-          className="text-[11px] leading-snug mt-2 line-clamp-2"
-          style={{ color: 'var(--color-premium-text-secondary)', minHeight: '30px' }}
-        >
-          {business.description}
-        </p>
       </div>
 
       {/* Level + income pills. Income always reads business.profitPerMin
@@ -319,7 +312,7 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
           baseProfitPerMin here instead was the exact bug caught from a
           real screenshot — a stale, unscaled number that never reflected
           the actual strategy-layer economy at all. */}
-      <div className="flex items-center gap-1.5 mt-2.5 relative" style={{ minHeight: '26px', zIndex: 2 }}>
+      <div className="flex items-center gap-1.5 mt-2 relative" style={{ minHeight: '26px', zIndex: 2 }}>
         <span
           className="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap"
           style={{ backgroundColor: hexToRgba(imageAccent, 0.16), color: imageAccent }}
@@ -342,7 +335,7 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
           room at all without this, and the two visibly overlapped (the
           price's last character rendering underneath the button). */}
       <div
-        className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 relative"
+        className="flex items-center justify-between gap-2 mt-2 pt-2 relative"
         style={{ borderTop: '1px solid var(--color-premium-border)', zIndex: 2 }}
       >
         <span className="font-bold text-[15px] flex-shrink-0" style={{ color: imageAccent }}>
