@@ -27,6 +27,13 @@ interface LeaderboardTabProps {
    *  for context, never used to sort or rank. */
   playerBusinessesBoughtCount: number;
   playerLevel: number;
+  /** Distinct businesses this player actually owns right now — NOT the
+   *  same as playerBusinessesBoughtCount, which counts every buy+upgrade
+   *  action ever taken and keeps climbing on every upgrade. This is what
+   *  the table's "Businesses" column shows for the local player's own
+   *  row, computed fresh from real business data rather than a synced
+   *  cumulative counter. */
+  playerBusinessesOwnedCount: number;
   /** Weekly contest — same real-player-fetch pattern as the overall
    *  leaderboard above, just ordered by weeklyPoints instead of net
    *  worth. */
@@ -49,6 +56,7 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
   playerProfitPerMin,
   playerBusinessesBoughtCount,
   playerLevel,
+  playerBusinessesOwnedCount,
   weeklyContestBoard,
   myWeeklyRank,
   myWeeklyPoints,
@@ -71,8 +79,6 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
   const secondsUntilNextFetch = Math.ceil(msUntilNextFetch / 1000);
 
   const activeBoard = view === 'overall' ? leaderboard : weeklyContestBoard;
-  const topThree = activeBoard.slice(0, 3);
-  const remaining = activeBoard.slice(3);
   const amInTopList = myUid !== null && activeBoard.some((e) => e.uid === myUid);
   const myActiveRank = view === 'overall' ? myRank : myWeeklyRank;
 
@@ -142,37 +148,43 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
           {(() => {
             const withLiveSelf = (entry: LeaderboardEntry & { uid: string }) =>
               entry.uid === myUid
-                ? { ...entry, playerName, avatarEmoji: playerAvatar, netWorth: playerNetWorth, level: playerLevel, weeklyPoints: myWeeklyPoints }
+                ? { ...entry, playerName, avatarEmoji: playerAvatar, netWorth: playerNetWorth, level: playerLevel, weeklyPoints: myWeeklyPoints, businessesOwnedCount: playerBusinessesOwnedCount }
                 : entry;
 
             return (
-              <>
-                {/* Top 3 spotlight */}
-                <div className="grid grid-cols-3 gap-2.5">
-                  {topThree.map((entry, i) => (
-                    <motion.div
-                      key={entry.uid}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.25, ease: 'easeOut', delay: i * 0.05 }}
-                    >
-                      <SpotlightCard entry={withLiveSelf(entry)} rank={i + 1} isMe={entry.uid === myUid} valueType={view === 'overall' ? 'cash' : 'points'} />
-                    </motion.div>
-                  ))}
+              <div
+                className="rounded-2xl overflow-hidden"
+                style={{ backgroundColor: 'var(--color-premium-surface)', border: '1.5px solid var(--color-premium-border)' }}
+              >
+                {/* Header row — real table, real column labels, not a
+                    row of cards masquerading as one. */}
+                <div
+                  className="grid gap-2 px-3 py-2"
+                  style={{ gridTemplateColumns: '26px 1fr 56px 72px', backgroundColor: 'var(--color-premium-elevated)' }}
+                >
+                  <span className="text-[8.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-premium-text-secondary)' }}>Rk</span>
+                  <span className="text-[8.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-premium-text-secondary)' }}>Player</span>
+                  <span className="text-[8.5px] font-bold uppercase tracking-wide text-center" style={{ color: 'var(--color-premium-text-secondary)' }}>Businesses</span>
+                  <span className="text-[8.5px] font-bold uppercase tracking-wide text-right" style={{ color: 'var(--color-premium-text-secondary)' }}>{view === 'overall' ? '₹/min' : 'Points'}</span>
                 </div>
 
-                {/* Remaining rankings — clean list, thin separators */}
-                {remaining.length > 0 && (
-                  <div
-                    className="rounded-2xl overflow-hidden"
-                    style={{ backgroundColor: 'var(--color-premium-surface)', border: '1.5px solid var(--color-premium-border)' }}
+                {activeBoard.map((entry, i) => (
+                  <motion.div
+                    key={entry.uid}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2, delay: Math.min(i, 8) * 0.03 }}
                   >
-                    {remaining.map((entry, i) => (
-                      <RankRow key={entry.uid} entry={withLiveSelf(entry)} rank={i + 4} isLast={i === remaining.length - 1} isMe={entry.uid === myUid} valueType={view === 'overall' ? 'cash' : 'points'} />
-                    ))}
-                  </div>
-                )}
-              </>
+                    <TableRow
+                      entry={withLiveSelf(entry)}
+                      rank={i + 1}
+                      isLast={i === activeBoard.length - 1}
+                      isMe={entry.uid === myUid}
+                      valueType={view === 'overall' ? 'cash' : 'points'}
+                    />
+                  </motion.div>
+                ))}
+              </div>
             );
           })()}
 
@@ -185,8 +197,8 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
               className="rounded-2xl overflow-hidden"
               style={{ backgroundColor: 'var(--color-premium-surface)', border: '1.5px solid var(--color-premium-gold-400)' }}
             >
-              <RankRow
-                entry={{ uid: myUid ?? 'me', playerName, avatarEmoji: playerAvatar, netWorth: playerNetWorth, profitPerMin: playerProfitPerMin, level: playerLevel, updatedAt: Date.now(), weeklyPoints: myWeeklyPoints, currentDistrictId: '', totalPlayTimeSeconds: 0, adsWatchedCount: 0, businessesBoughtCount: playerBusinessesBoughtCount, poolClaimsCount: 0 }}
+              <TableRow
+                entry={{ uid: myUid ?? 'me', playerName, avatarEmoji: playerAvatar, netWorth: playerNetWorth, profitPerMin: playerProfitPerMin, level: playerLevel, updatedAt: Date.now(), weeklyPoints: myWeeklyPoints, currentDistrictId: '', totalPlayTimeSeconds: 0, adsWatchedCount: 0, businessesBoughtCount: playerBusinessesBoughtCount, businessesOwnedCount: playerBusinessesOwnedCount, poolClaimsCount: 0 }}
                 rank={myActiveRank}
                 isLast
                 isMe
@@ -228,102 +240,55 @@ const HowToEarnRow: React.FC = () => {
   );
 };
 
-const SpotlightCard: React.FC<{ entry: LeaderboardEntry & { uid: string }; rank: number; isMe: boolean; valueType: 'cash' | 'points' }> = ({ entry, rank, isMe, valueType }) => (
+const TableRow: React.FC<{ entry: LeaderboardEntry & { uid: string }; rank: number; isLast: boolean; isMe: boolean; valueType: 'cash' | 'points' }> = ({ entry, rank, isLast, isMe, valueType }) => (
   <div
-    className="rounded-2xl p-2.5 flex flex-col items-center text-center"
+    className="grid gap-2 items-center px-3 py-2.5"
     style={{
-      backgroundColor: 'var(--color-premium-surface)',
-      border: `1.5px solid ${isMe ? 'var(--color-premium-gold-400)' : 'var(--color-premium-border)'}`,
-    }}
-  >
-    <div className="relative w-10 h-10 mb-1.5">
-      <div
-        className="w-full h-full rounded-full flex items-center justify-center text-lg"
-        style={{ backgroundColor: 'var(--color-premium-elevated)', border: '1.5px solid var(--color-premium-border-strong)' }}
-      >
-        {entry.avatarEmoji}
-      </div>
-      <div
-        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold"
-        style={{ backgroundColor: 'var(--color-premium-gold-400)', color: 'var(--color-premium-text-inverse)' }}
-      >
-        {rank}
-      </div>
-    </div>
-
-    <span className="text-[10.5px] font-bold leading-tight truncate w-full" style={{ color: 'var(--color-premium-text)' }}>
-      {entry.playerName}
-    </span>
-    {isMe && (
-      <span className="text-[8px] font-bold mt-0.5" style={{ color: 'var(--color-premium-gold-400)' }}>YOU</span>
-    )}
-
-    {valueType === 'cash' ? (
-      <>
-        <div className="flex items-center gap-1 mt-1.5 font-bold text-[11px]" style={{ color: 'var(--color-premium-green-500)' }}>
-          <CoinIcon className="w-3 h-3" premium />
-          {formatCash(entry.profitPerMin)}/min
-        </div>
-        <div className="text-[7.5px] font-medium mt-0.5" style={{ color: 'var(--color-premium-text-secondary)' }}>
-          {entry.businessesBoughtCount} businesses
-        </div>
-      </>
-    ) : (
-      <div className="font-bold text-[11px] mt-1.5" style={{ color: 'var(--color-premium-gold-400)' }}>
-        {entry.weeklyPoints} pts
-      </div>
-    )}
-    <div className="text-[8px] font-medium mt-1" style={{ color: 'var(--color-premium-text-secondary)' }}>
-      Level {entry.level}
-    </div>
-  </div>
-);
-
-const RankRow: React.FC<{ entry: LeaderboardEntry & { uid: string }; rank: number; isLast: boolean; isMe: boolean; valueType: 'cash' | 'points' }> = ({ entry, rank, isLast, isMe, valueType }) => (
-  <div
-    className={`flex items-center gap-3 px-3 py-2.5 ${isMe ? 'bg-[var(--color-premium-gold-400)]/[0.06]' : ''}`}
-    style={{
+      gridTemplateColumns: '26px 1fr 56px 72px',
       borderBottom: isLast ? 'none' : '1px solid var(--color-premium-border)',
+      backgroundColor: isMe ? 'rgba(212,167,44,0.08)' : 'transparent',
       borderLeft: isMe ? '2.5px solid var(--color-premium-gold-400)' : '2.5px solid transparent',
     }}
   >
-    <span className="w-8 text-center text-[11px] font-bold flex-shrink-0" style={{ color: 'var(--color-premium-text-secondary)' }}>
-      #{rank}
+    <span className="text-center flex-shrink-0" style={{ fontSize: rank <= 3 ? 15 : 11, fontWeight: 700, color: rank <= 3 ? undefined : 'var(--color-premium-text-secondary)' }}>
+      {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`}
     </span>
 
-    <div
-      className="w-8 h-8 rounded-full flex items-center justify-center text-base flex-shrink-0"
-      style={{ backgroundColor: 'var(--color-premium-elevated)', border: '1.5px solid var(--color-premium-border)' }}
-    >
-      {entry.avatarEmoji}
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span
+          className="w-6 h-6 rounded-full flex items-center justify-center text-[13px] flex-shrink-0"
+          style={{ backgroundColor: 'var(--color-premium-elevated)', border: '1.5px solid var(--color-premium-border)' }}
+        >
+          {entry.avatarEmoji}
+        </span>
+        <span className="text-[11.5px] font-bold truncate" style={{ color: isMe ? 'var(--color-premium-gold-400)' : 'var(--color-premium-text)' }}>
+          {entry.playerName}{isMe ? ' (You)' : ''}
+        </span>
+      </div>
+      {/* Net worth as compact subtext — real column alignment stays
+          reserved for Rank/Player/Businesses/Value, but this stat still
+          deserves a place without cramming a 5th column into a 380px
+          wide phone screen. */}
+      <div className="text-[8.5px] font-medium ml-[30px]" style={{ color: 'var(--color-premium-text-secondary)' }}>
+        {formatCash(entry.netWorth)} net worth
+      </div>
     </div>
 
-    <div className="flex-1 min-w-0">
-      <span className="text-[11.5px] font-bold truncate block" style={{ color: isMe ? 'var(--color-premium-gold-400)' : 'var(--color-premium-text)' }}>
-        {entry.playerName}{isMe ? ' (You)' : ''}
-      </span>
-      <span className="text-[8.5px] font-medium" style={{ color: 'var(--color-premium-text-secondary)' }}>
-        Level {entry.level}
-      </span>
-    </div>
+    <span className="text-center text-[11px] font-bold" style={{ color: 'var(--color-premium-text-secondary)' }}>
+      {entry.businessesOwnedCount ?? 0}
+    </span>
 
-    <div className="text-right flex-shrink-0">
+    <span className="text-right text-[11px] font-bold" style={{ color: valueType === 'cash' ? 'var(--color-premium-green-500)' : 'var(--color-premium-gold-400)' }}>
       {valueType === 'cash' ? (
-        <>
-          <div className="flex items-center justify-end gap-1 font-bold text-[11px]" style={{ color: 'var(--color-premium-green-500)' }}>
-            <CoinIcon className="w-3 h-3" premium />
-            {formatCash(entry.profitPerMin)}/min
-          </div>
-          <div className="text-[8px] font-medium" style={{ color: 'var(--color-premium-text-secondary)' }}>
-            {entry.businessesBoughtCount} businesses
-          </div>
-        </>
+        <span className="flex items-center justify-end gap-1">
+          <CoinIcon className="w-3 h-3" premium />
+          {formatCash(entry.profitPerMin)}
+        </span>
       ) : (
-        <div className="font-bold text-[11px]" style={{ color: 'var(--color-premium-gold-400)' }}>
-          {entry.weeklyPoints} pts
-        </div>
+        `${entry.weeklyPoints} pts`
       )}
-    </div>
+    </span>
   </div>
 );
 

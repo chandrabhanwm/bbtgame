@@ -80,6 +80,15 @@ export interface LeaderboardEntry {
   totalPlayTimeSeconds: number;
   adsWatchedCount: number;
   businessesBoughtCount: number;
+  /** Distinct businesses actually owned right now (level > 0), computed
+   *  fresh from the real business list at sync time — NOT the same as
+   *  businessesBoughtCount above, which is a cumulative buy+upgrade
+   *  action counter and keeps climbing every time an already-owned
+   *  business is upgraded. This field answers "how many different
+   *  businesses does this player own," which upgrades don't change.
+   *  Older synced entries won't have this field until they resync next
+   *  — display code should treat a missing value as 0, not crash. */
+  businessesOwnedCount: number;
   poolClaimsCount: number;
 }
 

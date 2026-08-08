@@ -1166,6 +1166,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
                   playerNetWorth={stats.cash + getEmpireTotalInvested(businessesByDistrict)}
                   playerProfitPerMin={stats.profitPerMin}
                   playerBusinessesBoughtCount={stats.businessesBoughtCount}
+                  playerBusinessesOwnedCount={Object.values(businessesByDistrict).flat().filter((b) => b.level > 0).length}
                   playerLevel={stats.level}
                   weeklyContestBoard={weeklyContestBoard}
                   myWeeklyRank={myWeeklyRank}

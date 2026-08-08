@@ -224,10 +224,11 @@ export function useCloudSync(params: UseCloudSyncParams) {
       SaveService.cloudSave(uid, latestSaveDataRef.current).then(() => {});
       const { businessesByDistrict: bbd, stats: currentStats, avatarEmoji: emoji, playerName: name, currentDistrictId: districtId } = latestSaveDataRef.current;
       const netWorth = currentStats.cash + getEmpireTotalInvested(bbd);
+      const businessesOwnedCount = Object.values(bbd).flat().filter((b) => b.level > 0).length;
       SaveService.updateLeaderboardEntry(uid, {
         playerName: name, avatarEmoji: emoji, netWorth, profitPerMin: currentStats.profitPerMin, level: currentStats.level, updatedAt: Date.now(), weeklyPoints: currentStats.weeklyPoints,
         currentDistrictId: districtId, totalPlayTimeSeconds: currentStats.totalPlayTimeSeconds, adsWatchedCount: currentStats.adsWatchedCount,
-        businessesBoughtCount: currentStats.businessesBoughtCount, poolClaimsCount: currentStats.poolClaimsCount,
+        businessesBoughtCount: currentStats.businessesBoughtCount, businessesOwnedCount, poolClaimsCount: currentStats.poolClaimsCount,
       });
       SaveService.fetchTopLeaderboard(20).then(setRealLeaderboard);
       SaveService.fetchMyRank(currentStats.profitPerMin).then(setMyRealRank);
@@ -254,6 +255,7 @@ export function useCloudSync(params: UseCloudSyncParams) {
 
       const { businessesByDistrict: bbd, stats: currentStats, avatarEmoji: emoji, playerName: name, currentDistrictId: districtId } = latestSaveDataRef.current;
       const netWorth = currentStats.cash + getEmpireTotalInvested(bbd);
+      const businessesOwnedCount = Object.values(bbd).flat().filter((b) => b.level > 0).length;
       SaveService.updateLeaderboardEntry(uid, {
         playerName: name,
         avatarEmoji: emoji,
@@ -266,6 +268,7 @@ export function useCloudSync(params: UseCloudSyncParams) {
         totalPlayTimeSeconds: currentStats.totalPlayTimeSeconds,
         adsWatchedCount: currentStats.adsWatchedCount,
         businessesBoughtCount: currentStats.businessesBoughtCount,
+        businessesOwnedCount,
         poolClaimsCount: currentStats.poolClaimsCount,
       });
     }, 120000); // every 2 minutes
