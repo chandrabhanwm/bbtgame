@@ -149,33 +149,29 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
     <motion.button
       whileTap={{
         scale: 0.99,
-        y: 4,
         boxShadow: celebrating
           ? '0 0 0 2px var(--color-premium-gold-400), 0 0 16px rgba(212, 167, 44, 0.45)'
-          : `0 1px 0 ${darkenHex(imageAccent, 0.4)}, 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.14)`,
+          : 'inset 3px 3px 6px rgba(0,0,0,0.5), inset -2px -2px 5px rgba(255,255,255,0.04)',
       }}
       animate={{ scale: celebrating ? [1, 0.95, 1.08, 0.98, 1.02, 1] : 1 }}
       transition={{ duration: celebrating ? 0.55 : 0.18, ease: 'easeOut' }}
       onClick={() => { playTap(); onSelect(business.id); }}
       className="relative flex flex-col rounded-[20px] text-left cursor-pointer p-3"
       style={{
-        // Flat color, but a real physical "lip" underneath — the same
-        // thick/pressable technique the Upgrade button already uses
-        // (solid offset shadow = thickness, not the diagonal glossy
-        // sheen, which stays scoped to the image/button faces only).
-        // Reusing imageAccent (the level's own color, or default teal
-        // when unowned) so the lip always matches everything else on
-        // the card. whileTap above compresses this down to a thin lip
-        // and nudges the whole card down 4px, so tapping ANYWHERE on
-        // the card — not just the Upgrade button — reads as physically
-        // pressing it in.
+        // Embossed, not the earlier thick-lip pressable style: a soft
+        // directional shadow PAIR does all the work here instead of a
+        // hard offset "step" — a dark shadow on the bottom-right (as if
+        // light is coming from the top-left) plus a faint light
+        // highlight on the opposite corner, which is what reads as
+        // "raised out of the surface" rather than "a button sitting on
+        // top of the surface." No hard border at all — the shadow pair
+        // is the only thing defining the card's edge.
         background: levelTier
-          ? `linear-gradient(165deg, ${hexToRgba(levelTier.border, 0.24)} 0%, var(--color-premium-surface) 65%)`
-          : 'var(--color-premium-surface)',
-        border: levelTier ? `1px solid ${hexToRgba(levelTier.border, 0.55)}` : '1px solid var(--color-premium-border)',
+          ? `linear-gradient(145deg, ${hexToRgba(levelTier.border, 0.18)} 0%, var(--color-premium-surface) 55%, var(--color-premium-bg) 100%)`
+          : 'linear-gradient(145deg, var(--color-premium-elevated) 0%, var(--color-premium-bg) 100%)',
         boxShadow: celebrating
           ? '0 0 0 2px var(--color-premium-gold-400), 0 0 16px rgba(212, 167, 44, 0.45)'
-          : `0 6px 0 ${darkenHex(imageAccent, 0.4)}, 0 10px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.14)`,
+          : `8px 8px 16px rgba(0,0,0,0.5), -6px -6px 14px rgba(255,255,255,0.035), inset 1px 1px 1px rgba(255,255,255,0.06)`,
       }}
     >
       {/* Level-up wipe reveal — a brief, automatic color sweep across the
@@ -257,15 +253,14 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
       <div
         className="relative w-full h-[100px] rounded-2xl overflow-hidden flex-shrink-0"
         style={{
-          border: `1.5px solid ${imageAccent}`,
-          // Sunken into the card, not raised — the opposite direction
-          // from the card's own outward lip shadow above. A dark inset
-          // shadow along the top/inner edge reads as a recessed slot the
-          // photo sits inside, with a faint inset highlight along the
-          // bottom edge suggesting the socket's far inside wall catching
-          // a little light — the same visual grammar as a physical
-          // photo-frame cutout pressed into a raised panel.
-          boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.55), inset 0 -1px 0 rgba(255,255,255,0.08)',
+          // Reversed shadow pair from the card's own outward emboss above
+          // — dark on the top-left inner edge, faint light on the
+          // bottom-right — which is what makes this specific area read
+          // as pressed IN while the card around it reads as pushed OUT.
+          // No hard colored border anymore; the shadow pair alone
+          // defines the recessed slot, consistent with the card shell
+          // dropping its border too.
+          boxShadow: 'inset 4px 4px 10px rgba(0,0,0,0.6), inset -2px -2px 6px rgba(255,255,255,0.04)',
           zIndex: 2,
         }}
       >
@@ -292,7 +287,7 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
       <div className="mt-2.5 relative" style={{ zIndex: 2 }}>
         <h3
           className="font-semibold text-[15px] leading-tight line-clamp-2"
-          style={{ color: 'var(--color-premium-text)', minHeight: '38px' }}
+          style={{ color: 'var(--color-premium-text)', minHeight: '38px', textShadow: '1px 1px 1px rgba(0,0,0,0.55), -1px -1px 1px rgba(255,255,255,0.06)' }}
         >
           {business.name}
         </h3>
@@ -315,13 +310,21 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
       <div className="flex items-center gap-1.5 mt-2 relative" style={{ minHeight: '26px', zIndex: 2 }}>
         <span
           className="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap"
-          style={{ backgroundColor: hexToRgba(imageAccent, 0.16), color: imageAccent }}
+          style={{
+            background: `linear-gradient(145deg, ${hexToRgba(imageAccent, 0.22)}, ${hexToRgba(imageAccent, 0.08)})`,
+            color: imageAccent,
+            boxShadow: '2px 2px 4px rgba(0,0,0,0.45), -1px -1px 3px rgba(255,255,255,0.04)',
+          }}
         >
           {isOwned ? `Level ${business.level}` : 'Buy'}
         </span>
         <span
           className="px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1"
-          style={{ backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--color-premium-green-500)' }}
+          style={{
+            background: 'linear-gradient(145deg, rgba(34,197,94,0.22), rgba(34,197,94,0.08))',
+            color: 'var(--color-premium-green-500)',
+            boxShadow: '2px 2px 4px rgba(0,0,0,0.45), -1px -1px 3px rgba(255,255,255,0.04)',
+          }}
         >
           <CoinIcon className="w-2.5 h-2.5" premium />
           ₹{Math.round(business.profitPerMin)}/min
@@ -336,27 +339,30 @@ export const BusinessGridCard: React.FC<BusinessGridCardProps> = ({ business, in
           price's last character rendering underneath the button). */}
       <div
         className="flex items-center justify-between gap-2 mt-2 pt-2 relative"
-        style={{ borderTop: '1px solid var(--color-premium-border)', zIndex: 2 }}
+        style={{ borderTop: '1px solid rgba(255,255,255,0.06)', zIndex: 2 }}
       >
-        <span className="font-bold text-[15px] flex-shrink-0" style={{ color: imageAccent }}>
+        <span
+          className="font-bold text-[15px] flex-shrink-0"
+          style={{ color: imageAccent, textShadow: '1px 1px 1px rgba(0,0,0,0.55)' }}
+        >
           ₹{formatShort(business.cost)}
         </span>
 
         {/* CTA — visually a button, but this whole card is already a
             <button> (onSelect above), so this stays a <div> to avoid
             nesting interactive elements; tapping anywhere on the card,
-            including here, opens the same detail sheet. Built from the
-            same pressable "recipe" (gradient face, solid lip shadow, real
-            depress on tap) as .btn-premium-pressable, via inline styles
-            here instead of the static CSS class, so the face/lip colors
-            can be derived from this business's own level color. */}
+            including here, opens the same detail sheet. Embossed to
+            match the rest of the card: a soft directional shadow pair
+            instead of the earlier hard offset "lip," with a light face
+            gradient and an inset top highlight suggesting a raised,
+            slightly domed surface. */}
         <motion.div
-          whileTap={{ y: 3, boxShadow: `0 1px 0 ${darkenHex(imageAccent, 0.35)}, 0 2px 5px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.5)` }}
+          whileTap={{ boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.4), inset -1px -1px 3px rgba(255,255,255,0.15)' }}
           className="px-4 py-2 rounded-full font-bold text-[11.5px] flex-shrink-0"
           style={{
-            background: `linear-gradient(180deg, ${lightenHex(imageAccent, 0.35)} 0%, ${imageAccent} 100%)`,
+            background: `linear-gradient(145deg, ${lightenHex(imageAccent, 0.3)} 0%, ${imageAccent} 100%)`,
             color: 'var(--color-premium-text-inverse)',
-            boxShadow: `0 4px 0 ${darkenHex(imageAccent, 0.35)}, 0 7px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.5)`,
+            boxShadow: `3px 3px 6px rgba(0,0,0,0.4), -2px -2px 5px rgba(255,255,255,0.12), inset 1px 1px 1px rgba(255,255,255,0.3)`,
           }}
         >
           {isOwned ? 'Upgrade' : 'Buy'}
