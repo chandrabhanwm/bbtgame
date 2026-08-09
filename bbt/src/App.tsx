@@ -18,6 +18,7 @@ import { LeaderboardTab } from './components/LeaderboardTab';
 import { CityMapScreen } from './components/citymap/CityMapScreen';
 import { PortfolioScreen } from './components/PortfolioScreen';
 import { SettingsScreen } from './components/SettingsScreen';
+import { PrestigeScreen } from './components/PrestigeScreen';
 import { Sparkle, Sunburst, CoinBurst, CoinFlight } from './components/FX';
 import { DistrictSummaryCard } from './components/DistrictSummaryCard';
 import { buildBusinessesForDistrict, districtEconomies, getDistrictTotalCost } from './data/districtBusinesses';
@@ -373,6 +374,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
   // the pixel reference, which only showed a speaker icon) — nothing to
   // wire there without adding a new visual element.
   const [showSettings, setShowSettings] = useState(false);
+  const [showPrestige, setShowPrestige] = useState(false);
   // Unified Milestone celebration — level-up, district-completion, and
   // achievement-unlock all drive this ONE state now, instead of three
   // separate near-duplicate modals. Confirmed via direct code inspection
@@ -1184,6 +1186,7 @@ function AppInner({ currentUid }: { currentUid: string }) {
                   playerEmail={auth.currentUser?.email}
                   onSignOut={handleSignOut}
                   onOpenSettings={() => setShowSettings(true)}
+                  onOpenPrestige={() => setShowPrestige(true)}
                   onClaimPool={handleClaimPool}
                   onDoubleClaim={handleDoubleClaim}
                   onManageDistrict={(districtId) => { setCurrentDistrict(districtId); setActiveTab('home'); }}
@@ -1204,6 +1207,12 @@ function AppInner({ currentUid }: { currentUid: string }) {
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
           playerName={playerName}
+        />
+
+        <PrestigeScreen
+          isOpen={showPrestige}
+          onClose={() => setShowPrestige(false)}
+          level={stats.level}
         />
 
         {/* 3b. SHOP DETAIL BOTTOM SHEET — tap a shop in the street to open this */}

@@ -6,6 +6,7 @@ import { CoinIcon } from './CoinIcon';
 import { formatCash } from '../utils/formatCash';
 import { playClick } from '../utils/audio';
 import { formatCooldownClock } from '../utils/cooldown';
+import { getCurrentPrestigeBadge } from '../config/prestigeConfig';
 
 interface LeaderboardTabProps {
   /** Real players, fetched from Firestore — replaces the old hardcoded
@@ -265,6 +266,11 @@ const TableRow: React.FC<{ entry: LeaderboardEntry & { uid: string }; rank: numb
         <span className="text-[11.5px] font-bold truncate" style={{ color: isMe ? 'var(--color-premium-gold-400)' : 'var(--color-premium-text)' }}>
           {entry.playerName}{isMe ? ' (You)' : ''}
         </span>
+        {getCurrentPrestigeBadge(entry.level) && (
+          <span className="text-[12px] flex-shrink-0" title={getCurrentPrestigeBadge(entry.level)!.name}>
+            {getCurrentPrestigeBadge(entry.level)!.icon}
+          </span>
+        )}
       </div>
       {/* Net worth as compact subtext — real column alignment stays
           reserved for Rank/Player/Businesses/Value, but this stat still

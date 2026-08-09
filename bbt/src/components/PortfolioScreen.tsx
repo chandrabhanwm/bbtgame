@@ -13,6 +13,7 @@ import { formatCash } from '../utils/formatCash';
 import { playClick, playUnlock } from '../utils/audio';
 import { getCooldownRemainingSeconds, CLAIM_COOLDOWN_MS, formatCooldownClock } from '../utils/cooldown';
 import { todayDateString } from '../utils/weeklyContest';
+import { getCurrentPrestigeBadge } from '../config/prestigeConfig';
 import { logAnalyticsEvent } from '../firebase/config';
 import { CountdownClock } from './CountdownClock';
 import { SimulatedAdModal } from './SimulatedAdModal';
@@ -24,6 +25,7 @@ interface PortfolioScreenProps {
   playerEmail?: string | null;
   onSignOut: () => void;
   onOpenSettings?: () => void;
+  onOpenPrestige?: () => void;
   /** Returns the claimed amount, so the UI can show "+₹X Collected!" and
    *  offer to double that exact amount. */
   onClaimPool: () => number;
@@ -48,6 +50,7 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
   playerEmail,
   onSignOut,
   onOpenSettings,
+  onOpenPrestige,
   onClaimPool,
   onDoubleClaim,
   onManageDistrict,
@@ -60,6 +63,7 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
   const [lastClaimedAmount, setLastClaimedAmount] = useState(0);
 
   const xpPct = Math.min(100, Math.round((stats.xp / Math.max(1, stats.nextLevelXp)) * 100));
+  const currentBadge = getCurrentPrestigeBadge(stats.level);
   const playerId = derivePlayerId(playerName);
 
   // Achievements now come from the shared computeAchievements() utility —
@@ -163,11 +167,16 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-[15px] truncate" style={{ color: 'var(--color-premium-text)' }}>
-            {playerName}
-          </h3>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h3 className="font-bold text-[15px] truncate" style={{ color: 'var(--color-premium-text)' }}>
+              {playerName}
+            </h3>
+            {currentBadge && (
+              <span className="text-[15px] flex-shrink-0" title={currentBadge.name}>{currentBadge.icon}</span>
+            )}
+          </div>
           <div className="text-[10px] font-semibold mt-0.5" style={{ color: 'var(--color-premium-gold-400)' }}>
-            Level {stats.level} · {xpPct}%
+            Level {stats.level} · {xpPct}%{currentBadge ? ` · ${currentBadge.name}` : ''}
           </div>
           <div className="w-full h-1 rounded-full mt-1.5 overflow-hidden" style={{ backgroundColor: 'var(--color-premium-track)' }}>
             <motion.div
@@ -493,6 +502,30 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
         ))}
       </div>
 
+
+      {/* Prestige shortcut — the trophy case, shows current + next badge
+          right on the entry card so the pull to open it isn't blind. */}
+      <button
+        onClick={() => { playClick(); onOpenPrestige?.(); }}
+        className="w-full rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer"
+        style={{ backgroundColor: 'var(--color-premium-surface)', border: '1.5px solid var(--color-premium-gold-400)' }}
+      >
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
+          style={{ backgroundColor: 'var(--color-premium-elevated)', border: '1.5px solid var(--color-premium-gold-400)' }}
+        >
+          {currentBadge?.icon ?? '👑'}
+        </div>
+        <div className="flex-1 text-left min-w-0">
+          <span className="block font-bold text-[12px]" style={{ color: 'var(--color-premium-text)' }}>
+            Prestige Badges
+          </span>
+          <span className="block text-[9.5px] font-semibold mt-0.5" style={{ color: 'var(--color-premium-gold-400)' }}>
+            {currentBadge ? currentBadge.name : 'Reach Level 5 to earn your first badge'}
+          </span>
+        </div>
+        <ChevronRight size={16} color="var(--color-premium-text-secondary)" />
+      </button>
 
       {/* Settings shortcut — navigates to the Settings screen */}
       <button

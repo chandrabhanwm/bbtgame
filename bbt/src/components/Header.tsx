@@ -6,6 +6,7 @@ import { playClick } from '../utils/audio';
 import { useCountUp } from '../utils/useCountUp';
 import { formatCash } from '../utils/formatCash';
 import { CoinIcon } from './CoinIcon';
+import { getCurrentPrestigeBadge } from '../config/prestigeConfig';
 
 // Same props contract as before — App.tsx's call site needs no changes.
 interface HeaderProps {
@@ -81,6 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const displayCash = useCountUp(stats.cash);
   const xpPct = Math.min(100, Math.round((stats.xp / Math.max(1, stats.nextLevelXp)) * 100));
+  const currentBadge = getCurrentPrestigeBadge(stats.level);
 
   useEffect(() => {
     prevCashRef.current = stats.cash;
@@ -140,7 +142,11 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="text-[11px] font-bold text-white tracking-wide truncate">
                     {playerName}
                   </span>
-                  <Crown size={9} color={GOLD} fill={GOLD} className="flex-shrink-0" />
+                  {currentBadge ? (
+                    <span className="text-[10px] flex-shrink-0" title={currentBadge.name}>{currentBadge.icon}</span>
+                  ) : (
+                    <Crown size={9} color={GOLD} fill={GOLD} className="flex-shrink-0" />
+                  )}
                 </div>
                 <div className="text-[9px] font-semibold mt-0.5 whitespace-nowrap" style={{ color: TEXT_SECONDARY }}>
                   Level {stats.level} · {xpPct}%

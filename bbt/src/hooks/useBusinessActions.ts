@@ -2,6 +2,7 @@ import { Business, PlayerStats } from '../types';
 import { calculateTieredProfit } from '../utils/profitCurve';
 import { applyContestPoints } from '../utils/weeklyContest';
 import { districtUsesStrategyLayer, getNextLevelCost, recomputeDistrictProfits } from '../utils/strategyEngine';
+import { getCurrentPrestigeBadge } from '../config/prestigeConfig';
 
 const LEVEL_UP_CASH_BONUS = 1000;
 
@@ -64,15 +65,34 @@ export function useBusinessActions({
       }
 
       if (leveledUp) {
+        // A prestige badge just crossed gets its OWN distinct
+        // celebration instead of (or blended into) the regular Level Up
+        // one — checked against the level BEFORE this gain so a badge
+        // earned mid-multi-level-rollup is still caught, not just the
+        // final level landed on.
+        const newBadge = getCurrentPrestigeBadge(currentLvl);
+        const hadBadgeBefore = getCurrentPrestigeBadge(prev.level);
+        const justEarnedBadge = newBadge && newBadge !== hadBadgeBefore;
+
         setTimeout(() => {
           playLevelUp();
-          setMilestone({
-            icon: '👑',
-            title: 'Level Up!',
-            message: `LEVEL UP! You reached Level ${currentLvl}! 🎉`,
-            bonusText: `Earned +₹${LEVEL_UP_CASH_BONUS.toLocaleString('en-IN')} bonus cash`,
-            color: 'gold',
-          });
+          if (justEarnedBadge && newBadge) {
+            setMilestone({
+              icon: newBadge.icon,
+              title: `${newBadge.name}!`,
+              message: `You've reached Level ${currentLvl} and earned the ${newBadge.name} title.`,
+              bonusText: `+₹${LEVEL_UP_CASH_BONUS.toLocaleString('en-IN')} bonus cash`,
+              color: 'gold',
+            });
+          } else {
+            setMilestone({
+              icon: '👑',
+              title: 'Level Up!',
+              message: `LEVEL UP! You reached Level ${currentLvl}! 🎉`,
+              bonusText: `Earned +₹${LEVEL_UP_CASH_BONUS.toLocaleString('en-IN')} bonus cash`,
+              color: 'gold',
+            });
+          }
           setShowConfetti(true);
           setTimeout(() => setShowConfetti(false), 1300);
         }, 100);
