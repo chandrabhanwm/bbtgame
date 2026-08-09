@@ -82,7 +82,18 @@ export const DistrictSummaryCard: React.FC<DistrictSummaryCardProps> = React.mem
         )}
       </AnimatePresence>
 
-      <div className="glossy-3d-subtle relative rounded-2xl overflow-hidden">
+      <div
+        className="relative rounded-2xl overflow-hidden"
+        style={{
+          // Same embossed treatment as the business grid cards: a soft
+          // directional shadow pair (dark bottom-right, faint light
+          // top-left) reads as "raised out of the surface," with no hard
+          // border — replaces the earlier glossy-3d-subtle diagonal
+          // sheen class entirely, for visual consistency across the app.
+          background: 'linear-gradient(145deg, var(--color-premium-elevated) 0%, var(--color-premium-bg) 100%)',
+          boxShadow: '8px 8px 16px rgba(0,0,0,0.5), -6px -6px 14px rgba(255,255,255,0.035), inset 1px 1px 1px rgba(255,255,255,0.06)',
+        }}
+      >
         {/* Shine sweep — a single diagonal light band crossing the card
             once when the celebration begins */}
         <AnimatePresence>
@@ -115,7 +126,7 @@ export const DistrictSummaryCard: React.FC<DistrictSummaryCardProps> = React.mem
 
         <div className="relative px-3 pt-4 pb-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-[19px] font-bold text-white leading-none">
+            <h2 className="text-[19px] font-bold text-white leading-none" style={{ textShadow: '1px 1px 1px rgba(0,0,0,0.55), -1px -1px 1px rgba(255,255,255,0.06)' }}>
               {districtEmoji} {districtName.toUpperCase()}
             </h2>
             <span className="flex items-center gap-0.5 flex-shrink-0" aria-label={`${stars} of ${progressionConfig.maxStars} stars`}>
@@ -131,7 +142,7 @@ export const DistrictSummaryCard: React.FC<DistrictSummaryCardProps> = React.mem
       </div>
 
       {/* Divider */}
-      <div className="h-px" style={{ backgroundColor: 'var(--color-premium-border)' }} />
+      <div className="h-px" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
 
       {/* Stat row — 4 columns, dividers between */}
       <div className="grid grid-cols-4">
@@ -160,7 +171,7 @@ export const DistrictSummaryCard: React.FC<DistrictSummaryCardProps> = React.mem
       </div>
 
       {/* Divider */}
-      <div className="h-px" style={{ backgroundColor: 'var(--color-premium-border)' }} />
+      <div className="h-px" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
 
       {/* Progress bar — "Next Level in X%" sits inline on the same row now,
           instead of as its own line below it. A soft glow appears on the
@@ -170,7 +181,7 @@ export const DistrictSummaryCard: React.FC<DistrictSummaryCardProps> = React.mem
       <div className="px-3 py-2.5 flex items-center gap-2.5">
         <motion.div
           className="flex-1 h-[6px] rounded-full overflow-hidden"
-          style={{ backgroundColor: 'var(--color-premium-track)' }}
+          style={{ backgroundColor: 'var(--color-premium-track)', boxShadow: 'inset 1px 1px 2px rgba(0,0,0,0.5)' }}
           animate={completionPercent >= 85 ? { boxShadow: ['0 0 0px rgba(34,197,94,0)', '0 0 8px rgba(34,197,94,0.55)', '0 0 0px rgba(34,197,94,0)'] } : {}}
           transition={{ duration: 2, repeat: completionPercent >= 85 ? Infinity : 0, ease: 'easeInOut' }}
         >
@@ -207,7 +218,7 @@ const StatCell: React.FC<{ icon: React.ReactNode; label: string; value: string; 
   return (
     <div
       className="flex flex-col items-start gap-1 px-2.5 py-2 overflow-hidden"
-      style={{ borderRight: last ? 'none' : '1px solid var(--color-premium-border-subtle)' }}
+      style={{ borderRight: last ? 'none' : '1px solid rgba(255,255,255,0.06)' }}
     >
       <span className="flex items-center gap-1 text-[7px] font-bold tracking-wide" style={{ color: GOLD }}>
         {label}
