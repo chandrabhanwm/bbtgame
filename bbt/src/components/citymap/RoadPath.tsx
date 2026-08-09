@@ -66,32 +66,21 @@ export const RoadPath: React.FC<RoadPathProps> = ({ id, from, to, active, travel
 
   return (
     <g>
-      {/* Road bed — thick, always full opacity, always the same neutral
-          tone. This is "the road exists," independent of whether it's
-          currently usable. */}
-      <path d={d} stroke="var(--color-premium-border)" strokeWidth={10} fill="none" strokeLinecap="round" />
+      {/* Flat top-down park-map path — a single dashed line with a solid
+          offset "sticker" shadow underneath (shifted down-right, no blur),
+          replacing the earlier thick glowing highway-style road bed. This
+          is the same flat-illustration language the district nodes below
+          now use too, rather than a glossy 3D road. */}
+      <path d={d} stroke="rgba(0,0,0,0.35)" strokeWidth={5} fill="none" strokeLinecap="round" strokeDasharray="9 8" transform="translate(2.5, 3)" />
 
-      {/* Soft white glow specifically for traveled roads — a plain color
-          change wouldn't read as "glowing," this adds a real blurred
-          halo underneath the dashed line itself. */}
-      {traveled && (
-        <path d={d} stroke="#ffffff" strokeWidth={6} fill="none" strokeLinecap="round" opacity={0.35} style={{ filter: 'blur(3px)' }} />
-      )}
-
-      {/* Center dash line — this is what actually carries the reachable/
-          locked distinction, the way a highway's paint doesn't change but
-          whether you're allowed to drive it might. Transitions smoothly
-          (not an instant snap) whenever reachability changes — this is
-          what makes a road "light up" the moment a district unlocks,
-          whenever the player is looking at the map. */}
       <path
         d={d}
         stroke={centerLineColor}
-        strokeWidth={1.75}
-        strokeDasharray="8 7"
+        strokeWidth={5}
+        strokeDasharray="9 8"
         fill="none"
         strokeLinecap="round"
-        opacity={traveled ? 1 : active ? 0.95 : 0.68}
+        opacity={traveled ? 1 : active ? 0.95 : 0.55}
         style={{ transition: 'stroke 0.7s ease, opacity 0.7s ease' }}
       />
 
@@ -103,10 +92,7 @@ export const RoadPath: React.FC<RoadPathProps> = ({ id, from, to, active, travel
         </path>
       )}
 
-      {/* Car, continuously driving the route — active roads only, sized
-          to actually read as a vehicle against the new 10px-wide road
-          (was 12 units against a 2.5px road before — invisible at that
-          scale, confirmed by a real screenshot). */}
+      {/* Car, continuously driving the route — active roads only. */}
       {active && (
         <image
           href="/assets/district-icons/vehicle_car.png"
